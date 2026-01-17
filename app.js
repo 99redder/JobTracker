@@ -159,8 +159,9 @@ const formConfigs = {
         title: 'Vehicle',
         fields: [
             { name: 'year', label: 'Year', type: 'number', required: true },
-            { name: 'makeModel', label: 'Make Model', type: 'text', required: true },
+            { name: 'driver', label: 'Driver', type: 'text', required: true },
             { name: 'vin', label: 'VIN', type: 'text', required: true },
+            { name: 'lastRegistrationDate', label: 'Last Registration Date', type: 'date', required: true },
             { name: 'registrationRenewalDate', label: 'Registration Renewal Date', type: 'date', required: true }
         ]
     },
@@ -982,11 +983,12 @@ function renderList(category, items) {
 
         cardContent = `
             <div class="card-header">
-                <span class="card-title">${escapeHtml(item.year)} ${escapeHtml(item.makeModel)}</span>
+                <span class="card-title">${escapeHtml(item.year)} ${escapeHtml(item.driver)}</span>
                 ${renewalWarning}
             </div>
             <div class="card-details">
                 <p><strong>VIN:</strong> ${escapeHtml(item.vin)}</p>
+                <p><strong>Last Registration:</strong> ${escapeHtml(item.lastRegistrationDate)}</p>
                 <p><strong>Registration Renewal:</strong> ${escapeHtml(item.registrationRenewalDate)}</p>
             </div>
             <div class="card-updated">Last updated: ${formatDate(item.updatedAt)}</div>
@@ -1036,7 +1038,7 @@ function renderList(category, items) {
         } else {
             // Flag button for non-admin users
             card.querySelector('.btn-flag').addEventListener('click', () => {
-                const title = `${item.year} ${item.makeModel}`;
+                const title = `${item.year} ${item.driver}`;
                 flagForFollowUp(category, item.id, title);
             });
         }
@@ -1153,12 +1155,12 @@ async function autoFlagVehicleRenewals() {
                 await db.collection('followups').add({
                     category: 'vehicles',
                     itemId: doc.id,
-                    itemTitle: `${vehicle.year} ${vehicle.makeModel} - Registration Renewal`,
+                    itemTitle: `${vehicle.year} ${vehicle.driver} - Registration Renewal`,
                     flaggedBy: 'system',
                     flaggedByEmail: 'Auto-flagged',
                     flaggedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                console.log(`Auto-flagged vehicle: ${vehicle.year} ${vehicle.makeModel}`);
+                console.log(`Auto-flagged vehicle: ${vehicle.year} ${vehicle.driver}`);
             }
         }
     } catch (error) {
