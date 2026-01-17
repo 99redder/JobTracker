@@ -35,6 +35,8 @@ const formConfigs = {
         title: 'Permit',
         fields: [
             { name: 'permitNumber', label: 'Permit Number', type: 'text', required: true },
+            { name: 'customerName', label: 'Customer Name', type: 'text', required: true },
+            { name: 'customerPhone', label: 'Customer Phone', type: 'tel', required: true },
             { name: 'county', label: 'County', type: 'text', required: true },
             { name: 'address', label: 'Address', type: 'text', required: true },
             { name: 'status', label: 'Status', type: 'select', options: ['Pending', 'Approved', 'In Progress', 'Completed', 'Denied'], required: true },
@@ -457,6 +459,8 @@ function renderList(category, items) {
                         <span class="status-badge status-${item.status?.toLowerCase().replace(' ', '-')}">${escapeHtml(item.status)}</span>
                     </div>
                     <div class="card-details">
+                        <p><strong>Customer:</strong> ${escapeHtml(item.customerName)}</p>
+                        <p><strong>Phone:</strong> <a href="tel:${escapeHtml(item.customerPhone)}">${escapeHtml(item.customerPhone)}</a></p>
                         <p><strong>County:</strong> ${escapeHtml(item.county)}</p>
                         <p><strong>Address:</strong> ${escapeHtml(item.address)}</p>
                         <p><strong>Submitted:</strong> ${escapeHtml(item.dateSubmitted)}</p>
