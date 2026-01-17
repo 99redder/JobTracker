@@ -39,6 +39,105 @@ function isAdmin() {
     return currentUser && ADMIN_UIDS.includes(currentUser.uid);
 }
 
+// Flag an item for follow up
+async function flagForFollowUp(category, itemId, itemTitle) {
+    if (!currentUser) return;
+
+    try {
+        await db.collection('followups').add({
+            category: category,
+            itemId: itemId,
+            itemTitle: itemTitle,
+            flaggedBy: currentUser.uid,
+            flaggedByEmail: currentUser.email,
+            flaggedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert('Item flagged for follow up!');
+    } catch (error) {
+        alert('Error flagging item: ' + error.message);
+        console.error('Flag error:', error);
+    }
+}
+
+// Dismiss a follow up (admin only)
+async function dismissFollowUp(followupId) {
+    if (!isAdmin()) return;
+
+    try {
+        await db.collection('followups').doc(followupId).delete();
+        loadFollowUps();
+    } catch (error) {
+        alert('Error dismissing follow up: ' + error.message);
+        console.error('Dismiss error:', error);
+    }
+}
+
+// Load follow ups for admin
+async function loadFollowUps() {
+    if (!isAdmin()) return;
+
+    const followupsSection = document.getElementById('followups-section');
+    const followupsList = document.getElementById('followups-list');
+    const followupsCount = document.getElementById('followups-count');
+
+    try {
+        const snapshot = await db.collection('followups').orderBy('flaggedAt', 'desc').get();
+
+        const followups = [];
+        snapshot.forEach(doc => {
+            followups.push({ id: doc.id, ...doc.data() });
+        });
+
+        followupsCount.textContent = followups.length;
+
+        if (followups.length === 0) {
+            followupsSection.classList.add('hidden');
+            followupsList.innerHTML = '';
+            return;
+        }
+
+        followupsSection.classList.remove('hidden');
+        followupsList.innerHTML = '';
+
+        for (const followup of followups) {
+            const item = document.createElement('div');
+            item.className = 'followup-item';
+
+            const categoryLabel = followup.category.charAt(0).toUpperCase() + followup.category.slice(1);
+            const flaggedDate = followup.flaggedAt ?
+                followup.flaggedAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) :
+                'Unknown';
+
+            item.innerHTML = `
+                <div class="followup-content">
+                    <span class="followup-category">${escapeHtml(categoryLabel)}</span>
+                    <span class="followup-title">${escapeHtml(followup.itemTitle)}</span>
+                    <span class="followup-meta">Flagged by ${escapeHtml(followup.flaggedByEmail)} on ${flaggedDate}</span>
+                </div>
+                <div class="followup-actions">
+                    <button class="btn btn-small btn-view" data-category="${followup.category}" data-id="${followup.itemId}">View</button>
+                    <button class="btn btn-small btn-dismiss" data-id="${followup.id}">Dismiss</button>
+                </div>
+            `;
+
+            // View button - switch to the relevant tab
+            item.querySelector('.btn-view').addEventListener('click', () => {
+                const tabBtn = document.querySelector(`[data-tab="${followup.category}"]`);
+                if (tabBtn) tabBtn.click();
+            });
+
+            // Dismiss button
+            item.querySelector('.btn-dismiss').addEventListener('click', () => {
+                dismissFollowUp(followup.id);
+            });
+
+            followupsList.appendChild(item);
+        }
+    } catch (error) {
+        console.error('Error loading follow ups:', error);
+    }
+}
+
 // Form field configurations for each category
 const formConfigs = {
     permits: {
@@ -210,6 +309,7 @@ auth.onAuthStateChanged((user) => {
         authContainer.classList.add('hidden');
         appContainer.classList.remove('hidden');
         updateAdminUI();
+        loadFollowUps();
         loadAllData();
     } else {
         currentUser = null;
@@ -501,7 +601,16 @@ function createTaskItem(item, category) {
                 </svg>
             </button>
         </div>
-    ` : '';
+    ` : `
+        <div class="task-actions">
+            <button class="btn-icon btn-flag-task" data-id="${item.id}" aria-label="Flag for Follow Up">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                    <line x1="4" y1="22" x2="4" y2="15"></line>
+                </svg>
+            </button>
+        </div>
+    `;
 
     taskItem.innerHTML = `
         <span class="task-text">${escapeHtml(item.task)}</span>
@@ -525,6 +634,12 @@ function createTaskItem(item, category) {
                 }
             });
         });
+    } else {
+        // Flag button for non-admin users
+        taskItem.querySelector('.btn-flag-task').addEventListener('click', () => {
+            const title = `Task: ${item.task}`;
+            flagForFollowUp(category, item.id, title);
+        });
     }
 
     return taskItem;
@@ -540,7 +655,17 @@ function createPermitCard(item, category) {
             <button class="btn btn-small btn-edit" data-id="${item.id}">Edit</button>
             <button class="btn btn-small btn-danger" data-id="${item.id}">Delete</button>
         </div>
-    ` : '';
+    ` : `
+        <div class="card-actions">
+            <button class="btn btn-small btn-flag" data-id="${item.id}">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                    <line x1="4" y1="22" x2="4" y2="15"></line>
+                </svg>
+                Flag for Follow Up
+            </button>
+        </div>
+    `;
 
     card.innerHTML = `
         <div class="card-header">
@@ -574,6 +699,12 @@ function createPermitCard(item, category) {
                     alert('Error deleting: ' + error.message);
                 }
             });
+        });
+    } else {
+        // Flag button for non-admin users
+        card.querySelector('.btn-flag').addEventListener('click', () => {
+            const title = `${item.permitNumber} - ${item.customerName}`;
+            flagForFollowUp(category, item.id, title);
         });
     }
 
@@ -769,6 +900,19 @@ function renderList(category, items) {
                     <button class="btn btn-small btn-danger" data-id="${item.id}">Delete</button>
                 </div>
             `;
+        } else {
+            // Flag button for non-admin users
+            cardContent += `
+                <div class="card-actions">
+                    <button class="btn btn-small btn-flag" data-id="${item.id}">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                            <line x1="4" y1="22" x2="4" y2="15"></line>
+                        </svg>
+                        Flag for Follow Up
+                    </button>
+                </div>
+            `;
         }
 
         card.innerHTML = cardContent;
@@ -789,6 +933,17 @@ function renderList(category, items) {
                         alert('Error deleting: ' + error.message);
                     }
                 });
+            });
+        } else {
+            // Flag button for non-admin users
+            card.querySelector('.btn-flag').addEventListener('click', () => {
+                let title = '';
+                if (category === 'vehicles') {
+                    title = `${item.vehicleName} - ${item.year} ${item.make} ${item.model}`;
+                } else if (category === 'bills') {
+                    title = `${item.vendor} - $${parseFloat(item.amount).toFixed(2)}`;
+                }
+                flagForFollowUp(category, item.id, title);
             });
         }
 
