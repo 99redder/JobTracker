@@ -158,9 +158,12 @@ const formConfigs = {
     vehicles: {
         title: 'Vehicle',
         fields: [
-            { name: 'year', label: 'Year', type: 'number', required: true },
             { name: 'driver', label: 'Driver', type: 'text', required: true },
+            { name: 'year', label: 'Year', type: 'number', required: true },
+            { name: 'make', label: 'Make', type: 'text', required: true },
+            { name: 'model', label: 'Model', type: 'text', required: true },
             { name: 'vin', label: 'VIN', type: 'text', required: true },
+            { name: 'licensePlate', label: 'License Plate #', type: 'text', required: true },
             { name: 'lastRegistrationDate', label: 'Last Registration Date', type: 'date', required: true },
             { name: 'registrationRenewalDate', label: 'Registration Renewal Date', type: 'date', required: true }
         ]
@@ -983,11 +986,13 @@ function renderList(category, items) {
 
         cardContent = `
             <div class="card-header">
-                <span class="card-title">${escapeHtml(item.year)} ${escapeHtml(item.driver)}</span>
+                <span class="card-title">${escapeHtml(item.driver)}</span>
                 ${renewalWarning}
             </div>
             <div class="card-details">
+                <p><strong>Vehicle:</strong> ${escapeHtml(item.year)} ${escapeHtml(item.make)} ${escapeHtml(item.model)}</p>
                 <p><strong>VIN:</strong> ${escapeHtml(item.vin)}</p>
+                <p><strong>License Plate:</strong> ${escapeHtml(item.licensePlate)}</p>
                 <p><strong>Last Registration:</strong> ${escapeHtml(item.lastRegistrationDate)}</p>
                 <p><strong>Registration Renewal:</strong> ${escapeHtml(item.registrationRenewalDate)}</p>
             </div>
@@ -1038,7 +1043,7 @@ function renderList(category, items) {
         } else {
             // Flag button for non-admin users
             card.querySelector('.btn-flag').addEventListener('click', () => {
-                const title = `${item.year} ${item.driver}`;
+                const title = `${item.driver} - ${item.year} ${item.make} ${item.model}`;
                 flagForFollowUp(category, item.id, title);
             });
         }
@@ -1155,12 +1160,12 @@ async function autoFlagVehicleRenewals() {
                 await db.collection('followups').add({
                     category: 'vehicles',
                     itemId: doc.id,
-                    itemTitle: `${vehicle.year} ${vehicle.driver} - Registration Renewal`,
+                    itemTitle: `${vehicle.driver} - ${vehicle.year} ${vehicle.make} ${vehicle.model} - Registration Renewal`,
                     flaggedBy: 'system',
                     flaggedByEmail: 'Auto-flagged',
                     flaggedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                console.log(`Auto-flagged vehicle: ${vehicle.year} ${vehicle.driver}`);
+                console.log(`Auto-flagged vehicle: ${vehicle.driver} - ${vehicle.year} ${vehicle.make} ${vehicle.model}`);
             }
         }
     } catch (error) {
