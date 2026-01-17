@@ -465,6 +465,15 @@ body {
     color: var(--text-color);
 }
 
+.card-details a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.card-details a:hover {
+    text-decoration: underline;
+}
+
 .card-actions {
     display: flex;
     gap: 0.5rem;
