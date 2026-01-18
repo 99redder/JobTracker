@@ -591,6 +591,39 @@ async function cleanupOldActivities() {
     }
 }
 
+// Clean up paid bills older than 1 year (365 days)
+async function cleanupOldPaidBills() {
+    if (!isAdmin()) return; // Only admins can delete
+
+    try {
+        const oneYearAgo = new Date();
+        oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+
+        const snapshot = await db.collection('bills').get();
+        const batch = db.batch();
+        let deleteCount = 0;
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            // Only delete paid bills
+            if (data.status === 'Paid' && data.updatedAt) {
+                const updatedDate = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
+                if (updatedDate < oneYearAgo) {
+                    batch.delete(doc.ref);
+                    deleteCount++;
+                }
+            }
+        });
+
+        if (deleteCount > 0) {
+            await batch.commit();
+            console.log(`Cleaned up ${deleteCount} paid bills older than 1 year`);
+        }
+    } catch (error) {
+        console.error('Error cleaning up old paid bills:', error);
+    }
+}
+
 async function loadData(category) {
     if (!currentUser) return;
 
@@ -600,6 +633,11 @@ async function loadData(category) {
     // Auto-cleanup old activity items when loading activity tab
     if (category === 'activity') {
         await cleanupOldActivities();
+    }
+
+    // Auto-cleanup paid bills older than 1 year when loading bills tab
+    if (category === 'bills') {
+        await cleanupOldPaidBills();
     }
 
     try {
