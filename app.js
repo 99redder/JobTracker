@@ -235,13 +235,28 @@ document.getElementById('show-login-from-reset').addEventListener('click', (e) =
     resetForm.classList.add('hidden');
 });
 
+// reCAPTCHA widget IDs
+let loginRecaptchaId = null;
+let signupRecaptchaId = null;
+
+// Called when reCAPTCHA script loads
+window.onRecaptchaLoad = function() {
+    loginRecaptchaId = grecaptcha.render('login-recaptcha', {
+        'sitekey': '6Ld_FE4sAAAAAIa9IqIoo8ojyhh6TSBOCVPWgqaw',
+        'theme': 'dark'
+    });
+    signupRecaptchaId = grecaptcha.render('signup-recaptcha', {
+        'sitekey': '6Ld_FE4sAAAAAIa9IqIoo8ojyhh6TSBOCVPWgqaw',
+        'theme': 'dark'
+    });
+};
+
 // Login
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     // Check reCAPTCHA
-    const recaptchaResponse = grecaptcha.getResponse(0);
-    if (!recaptchaResponse) {
+    if (loginRecaptchaId === null || !grecaptcha.getResponse(loginRecaptchaId)) {
         showMessage('Please complete the reCAPTCHA', true);
         return;
     }
@@ -255,7 +270,7 @@ loginForm.addEventListener('submit', async (e) => {
         await auth.signInWithEmailAndPassword(email, password);
     } catch (error) {
         showMessage(error.message, true);
-        grecaptcha.reset(0);
+        if (loginRecaptchaId !== null) grecaptcha.reset(loginRecaptchaId);
     }
 
     hideLoading();
@@ -266,8 +281,7 @@ signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     // Check reCAPTCHA
-    const recaptchaResponse = grecaptcha.getResponse(1);
-    if (!recaptchaResponse) {
+    if (signupRecaptchaId === null || !grecaptcha.getResponse(signupRecaptchaId)) {
         showMessage('Please complete the reCAPTCHA', true);
         return;
     }
@@ -280,7 +294,7 @@ signupForm.addEventListener('submit', async (e) => {
 
     if (password !== confirm) {
         showMessage('Passwords do not match', true);
-        grecaptcha.reset(1);
+        if (signupRecaptchaId !== null) grecaptcha.reset(signupRecaptchaId);
         hideLoading();
         return;
     }
@@ -290,7 +304,7 @@ signupForm.addEventListener('submit', async (e) => {
         showMessage('Account created successfully!');
     } catch (error) {
         showMessage(error.message, true);
-        grecaptcha.reset(1);
+        if (signupRecaptchaId !== null) grecaptcha.reset(signupRecaptchaId);
     }
 
     hideLoading();
