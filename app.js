@@ -235,18 +235,24 @@ document.getElementById('show-login-from-reset').addEventListener('click', (e) =
     resetForm.classList.add('hidden');
 });
 
+// reCAPTCHA v2 site key
+const RECAPTCHA_SITE_KEY = '6LcBrU4sAAAAAPvJzPw5NoZTSoO04v2GGI2xBF6M';
+
 // reCAPTCHA widget IDs
 let loginRecaptchaId = null;
 let signupRecaptchaId = null;
 
-// Called when reCAPTCHA script loads
+// Initialize reCAPTCHA widgets
 window.onRecaptchaLoad = function() {
+    // Render login reCAPTCHA
     loginRecaptchaId = grecaptcha.render('login-recaptcha', {
-        'sitekey': '6Ld_FE4sAAAAAIa9IqIoo8ojyhh6TSBOCVPWgqaw',
+        'sitekey': RECAPTCHA_SITE_KEY,
         'theme': 'dark'
     });
+
+    // Render signup reCAPTCHA
     signupRecaptchaId = grecaptcha.render('signup-recaptcha', {
-        'sitekey': '6Ld_FE4sAAAAAIa9IqIoo8ojyhh6TSBOCVPWgqaw',
+        'sitekey': RECAPTCHA_SITE_KEY,
         'theme': 'dark'
     });
 };
@@ -256,21 +262,22 @@ loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     // Check reCAPTCHA
-    if (loginRecaptchaId === null || !grecaptcha.getResponse(loginRecaptchaId)) {
-        showMessage('Please complete the reCAPTCHA', true);
+    const recaptchaResponse = grecaptcha.getResponse(loginRecaptchaId);
+    if (!recaptchaResponse) {
+        showMessage('Please complete the CAPTCHA', true);
         return;
     }
 
     showLoading();
 
-    const email = document.getElementById('login-email').value;
-    const password = document.getElementById('login-password').value;
-
     try {
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+
         await auth.signInWithEmailAndPassword(email, password);
     } catch (error) {
         showMessage(error.message, true);
-        if (loginRecaptchaId !== null) grecaptcha.reset(loginRecaptchaId);
+        grecaptcha.reset(loginRecaptchaId);
     }
 
     hideLoading();
@@ -280,31 +287,30 @@ loginForm.addEventListener('submit', async (e) => {
 signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // Check reCAPTCHA
-    if (signupRecaptchaId === null || !grecaptcha.getResponse(signupRecaptchaId)) {
-        showMessage('Please complete the reCAPTCHA', true);
-        return;
-    }
-
-    showLoading();
-
     const email = document.getElementById('signup-email').value;
     const password = document.getElementById('signup-password').value;
     const confirm = document.getElementById('signup-confirm').value;
 
     if (password !== confirm) {
         showMessage('Passwords do not match', true);
-        if (signupRecaptchaId !== null) grecaptcha.reset(signupRecaptchaId);
-        hideLoading();
         return;
     }
+
+    // Check reCAPTCHA
+    const recaptchaResponse = grecaptcha.getResponse(signupRecaptchaId);
+    if (!recaptchaResponse) {
+        showMessage('Please complete the CAPTCHA', true);
+        return;
+    }
+
+    showLoading();
 
     try {
         await auth.createUserWithEmailAndPassword(email, password);
         showMessage('Account created successfully!');
     } catch (error) {
         showMessage(error.message, true);
-        if (signupRecaptchaId !== null) grecaptcha.reset(signupRecaptchaId);
+        grecaptcha.reset(signupRecaptchaId);
     }
 
     hideLoading();
