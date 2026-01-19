@@ -186,6 +186,26 @@ const formConfigs = {
             { name: 'date', label: 'Date', type: 'date', required: true },
             { name: 'task', label: 'Task', type: 'text', required: true }
         ]
+    },
+    deposits: {
+        title: 'Deposit',
+        fields: [
+            { name: 'customerName', label: 'Customer Name', type: 'text', required: true },
+            { name: 'amount', label: 'Amount ($)', type: 'number', step: '0.01', required: true },
+            { name: 'checkNumber', label: 'Check Number', type: 'text', required: true },
+            { name: 'depositDate', label: 'Deposit Date', type: 'date', required: true },
+            { name: 'notes', label: 'Notes', type: 'textarea', required: false }
+        ]
+    },
+    inspections: {
+        title: 'Inspection',
+        fields: [
+            { name: 'date', label: 'Date', type: 'date', required: true },
+            { name: 'countyTown', label: 'County/Town', type: 'text', required: true },
+            { name: 'address', label: 'Address', type: 'text', required: true },
+            { name: 'job', label: 'Job', type: 'text', required: true },
+            { name: 'notes', label: 'Notes', type: 'textarea', required: false }
+        ]
     }
 };
 
@@ -498,6 +518,8 @@ modal.addEventListener('click', (e) => {
 document.getElementById('add-permit-btn').addEventListener('click', () => openModal('permits'));
 document.getElementById('add-vehicle-btn').addEventListener('click', () => openModal('vehicles'));
 document.getElementById('add-bill-btn').addEventListener('click', () => openModal('bills'));
+document.getElementById('add-deposit-btn').addEventListener('click', () => openModal('deposits'));
+document.getElementById('add-inspection-btn').addEventListener('click', () => openModal('inspections'));
 document.getElementById('add-activity-btn').addEventListener('click', () => openModal('activity'));
 
 // Helper function to add timeout to promises
@@ -576,6 +598,8 @@ async function loadAllData() {
         loadData('permits'),
         loadData('vehicles'),
         loadData('bills'),
+        loadData('deposits'),
+        loadData('inspections'),
         loadData('activity')
     ]);
     hideLoading();
@@ -1073,6 +1097,24 @@ function renderList(category, items) {
         return;
     }
 
+    // For deposits, render with deposit cards
+    if (category === 'deposits') {
+        items.forEach(item => {
+            const card = createDepositCard(item, category);
+            listElement.appendChild(card);
+        });
+        return;
+    }
+
+    // For inspections, render with inspection cards
+    if (category === 'inspections') {
+        items.forEach(item => {
+            const card = createInspectionCard(item, category);
+            listElement.appendChild(card);
+        });
+        return;
+    }
+
     // For vehicles, render normally
     items.forEach(item => {
         const card = document.createElement('div');
@@ -1217,6 +1259,146 @@ function createBillCard(item, category) {
     } else {
         card.querySelector('.btn-flag').addEventListener('click', () => {
             const title = `${item.vendor} - $${parseFloat(item.amount || 0).toFixed(2)}`;
+            flagForFollowUp(category, item.id, title);
+        });
+    }
+
+    return card;
+}
+
+// Helper function to create a deposit card
+function createDepositCard(item, category) {
+    const card = document.createElement('div');
+    card.className = 'item-card';
+
+    const depositDate = item.depositDate
+        ? new Date(item.depositDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'No Date';
+
+    let cardContent = `
+        <div class="card-header">
+            <span class="card-title">${escapeHtml(item.customerName)}</span>
+            <span class="deposit-amount">$${parseFloat(item.amount || 0).toFixed(2)}</span>
+        </div>
+        <div class="card-details">
+            <p><strong>Check #:</strong> ${escapeHtml(item.checkNumber)}</p>
+            <p><strong>Deposit Date:</strong> ${depositDate}</p>
+            ${item.notes ? `<p><strong>Notes:</strong> ${escapeHtml(item.notes)}</p>` : ''}
+        </div>
+        <div class="card-updated">Last updated: ${formatDate(item.updatedAt)}</div>
+    `;
+
+    if (isAdmin()) {
+        cardContent += `
+            <div class="card-actions">
+                <button class="btn btn-small btn-edit" data-id="${item.id}">Edit</button>
+                <button class="btn btn-small btn-danger" data-id="${item.id}">Delete</button>
+            </div>
+        `;
+    } else {
+        cardContent += `
+            <div class="card-actions">
+                <button class="btn btn-small btn-flag" data-id="${item.id}">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                        <line x1="4" y1="22" x2="4" y2="15"></line>
+                    </svg>
+                    Flag for Follow Up
+                </button>
+            </div>
+        `;
+    }
+
+    card.innerHTML = cardContent;
+
+    if (isAdmin()) {
+        card.querySelector('.btn-edit').addEventListener('click', () => {
+            openModal(category, item);
+        });
+
+        card.querySelector('.btn-danger').addEventListener('click', () => {
+            showDeleteConfirm(async () => {
+                try {
+                    await db.collection(category).doc(item.id).delete();
+                    loadData(category);
+                } catch (error) {
+                    alert('Error deleting: ' + error.message);
+                }
+            });
+        });
+    } else {
+        card.querySelector('.btn-flag').addEventListener('click', () => {
+            const title = `${item.customerName} - $${parseFloat(item.amount || 0).toFixed(2)}`;
+            flagForFollowUp(category, item.id, title);
+        });
+    }
+
+    return card;
+}
+
+// Helper function to create an inspection card
+function createInspectionCard(item, category) {
+    const card = document.createElement('div');
+    card.className = 'item-card';
+
+    const inspectionDate = item.date
+        ? new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+        : 'No Date';
+
+    let cardContent = `
+        <div class="card-header">
+            <span class="card-title">${escapeHtml(item.job)}</span>
+            <span class="inspection-date">${inspectionDate}</span>
+        </div>
+        <div class="card-details">
+            <p><strong>County/Town:</strong> ${escapeHtml(item.countyTown)}</p>
+            <p><strong>Address:</strong> ${escapeHtml(item.address)}</p>
+            ${item.notes ? `<p><strong>Notes:</strong> ${escapeHtml(item.notes)}</p>` : ''}
+        </div>
+        <div class="card-updated">Last updated: ${formatDate(item.updatedAt)}</div>
+    `;
+
+    if (isAdmin()) {
+        cardContent += `
+            <div class="card-actions">
+                <button class="btn btn-small btn-edit" data-id="${item.id}">Edit</button>
+                <button class="btn btn-small btn-danger" data-id="${item.id}">Delete</button>
+            </div>
+        `;
+    } else {
+        cardContent += `
+            <div class="card-actions">
+                <button class="btn btn-small btn-flag" data-id="${item.id}">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                        <line x1="4" y1="22" x2="4" y2="15"></line>
+                    </svg>
+                    Flag for Follow Up
+                </button>
+            </div>
+        `;
+    }
+
+    card.innerHTML = cardContent;
+
+    if (isAdmin()) {
+        card.querySelector('.btn-edit').addEventListener('click', () => {
+            openModal(category, item);
+        });
+
+        card.querySelector('.btn-danger').addEventListener('click', () => {
+            showDeleteConfirm(async () => {
+                try {
+                    await db.collection(category).doc(item.id).delete();
+                    loadData(category);
+                } catch (error) {
+                    alert('Error deleting: ' + error.message);
+                }
+            });
+        });
+    } else {
+        card.querySelector('.btn-flag').addEventListener('click', () => {
+            const title = `${item.job} - ${item.address}`;
             flagForFollowUp(category, item.id, title);
         });
     }
