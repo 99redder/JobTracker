@@ -890,6 +890,20 @@ body {
     white-space: nowrap;
 }
 
+.deposit-amount {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.inspection-date {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
 .hours-badge {
     background-color: #dbeafe;
     color: #1e40af;

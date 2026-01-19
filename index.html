@@ -120,6 +120,21 @@
                 </svg>
                 <span>Bills</span>
             </button>
+            <button class="tab-btn" data-tab="deposits" aria-label="Deposits">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                    <line x1="2" y1="10" x2="22" y2="10"></line>
+                    <line x1="6" y1="14" x2="10" y2="14"></line>
+                </svg>
+                <span>Deposits</span>
+            </button>
+            <button class="tab-btn" data-tab="inspections" aria-label="Inspections">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 11l3 3L22 4"></path>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                </svg>
+                <span>Inspections</span>
+            </button>
             <button class="tab-btn" data-tab="activity" aria-label="Activity">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -185,6 +200,24 @@
                     <button class="btn btn-add admin-only" id="add-bill-btn">+ Add</button>
                 </div>
                 <div id="bills-list" class="items-list"></div>
+            </section>
+
+            <!-- Deposits Section -->
+            <section id="deposits-tab" class="tab-panel hidden">
+                <div class="panel-header">
+                    <h2>Deposits</h2>
+                    <button class="btn btn-add admin-only" id="add-deposit-btn">+ Add</button>
+                </div>
+                <div id="deposits-list" class="items-list"></div>
+            </section>
+
+            <!-- Inspections Section -->
+            <section id="inspections-tab" class="tab-panel hidden">
+                <div class="panel-header">
+                    <h2>Inspections</h2>
+                    <button class="btn btn-add admin-only" id="add-inspection-btn">+ Add</button>
+                </div>
+                <div id="inspections-list" class="items-list"></div>
             </section>
 
             <!-- Activity Section -->
