@@ -314,6 +314,9 @@ body {
 /* Tab Navigation */
 .tab-nav {
     display: flex;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
     background-color: #171717;
     border-bottom: 1px solid var(--border-color);
     position: sticky;
@@ -322,13 +325,14 @@ body {
 }
 
 .tab-btn {
-    flex: 1;
+    flex: 1 0 auto;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 0.15rem;
-    padding: 0.5rem 0.25rem;
+    padding: 0.5rem 0.2rem;
     min-height: 50px;
     background: none;
     border: none;
@@ -341,8 +345,8 @@ body {
 }
 
 .tab-btn svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     flex-shrink: 0;
 }
 
