@@ -149,7 +149,7 @@ const formConfigs = {
             { name: 'permitNumber', label: 'Permit Number', type: 'text', required: true },
             { name: 'customerName', label: 'Customer Name', type: 'text', required: true },
             { name: 'customerPhone', label: 'Customer Phone', type: 'tel', required: true },
-            { name: 'county', label: 'County', type: 'select', options: ['Wicomico', 'Worcester', 'Somerset', 'Dorchester', 'Talbot', 'Caroline', "Queen Anne's", 'Kent', 'Cecil', 'Harford', 'Sussex DE', 'Kent DE', 'New Castle DE'], required: true },
+            { name: 'county', label: 'County', type: 'select', options: ['Wicomico', 'Worcester', 'Somerset', 'Dorchester', 'Talbot', 'Caroline', "Queen Anne's", 'Kent', 'Cecil', 'Harford', 'Sussex DE', 'Kent DE', 'New Castle DE', 'Accomack VA', 'Northampton VA'], required: true },
             { name: 'city', label: 'City', type: 'text', required: false },
             { name: 'address', label: 'Address', type: 'text', required: true },
             { name: 'status', label: 'Status', type: 'select', options: ['Pending', 'Approved', 'In Progress', 'Completed', 'Denied'], required: true },
