@@ -1,6 +1,6 @@
 # JobTracker
 
-A mobile-first web application for tracking permits, vehicles, bills, deposits, inspections, and daily tasks.
+A mobile-first web application for tracking permits, vehicles, bills, deposits, inspections, business licenses, and daily tasks.
 
 **Live URL**: https://chrisgorham999.github.io/JobTracker/
 
@@ -26,13 +26,13 @@ A mobile-first web application for tracking permits, vehicles, bills, deposits, 
 - `bills` - Bills and expenses
 - `deposits` - Customer deposits
 - `inspections` - Inspection records
-- `todos` - Admin todo items
+- `licenses` - Business license tracking
 - `activity` - Daily activity log
 - `followups` - Flagged items for follow-up
 
 ## User Roles
 
-- **Admin**: Full CRUD access, can dismiss follow-ups, sees ToDo and Activity tabs
+- **Admin**: Full CRUD access, can dismiss follow-ups, sees Licenses and Activity tabs
 - **Regular users**: Read-only access, can flag items for admin follow-up
 - Admin UIDs are defined in `ADMIN_UIDS` array in app.js
 
@@ -44,7 +44,7 @@ A mobile-first web application for tracking permits, vehicles, bills, deposits, 
 4. **Bills** - Bills and expenses (Unpaid Bills, Paid Bills, Paid Expenses sections)
 5. **Deposits** - Customer deposit tracking
 6. **Inspections** - Inspection records
-7. **ToDo** - Admin-only task list
+7. **Licenses** - Business license tracking with expiration alerts
 8. **Activity** - Admin-only daily activity log
 
 ## Key Features
@@ -73,6 +73,12 @@ A mobile-first web application for tracking permits, vehicles, bills, deposits, 
 - Auto-cleanup: items older than 90 days
 - Grouped by date (collapsible)
 
+### Business Licenses
+- Fields: Jurisdiction, License Number, Expiration Date
+- Photo upload via Firebase Storage
+- Auto-flags licenses expiring within 30 days
+- Admin-only tab
+
 ### Conditional Form Fields
 - `showIf` - Show field only when condition met
 - `disableIf` - Disable field when condition met
@@ -98,4 +104,4 @@ Push to `main` branch - GitHub Pages auto-deploys from there.
 
 - Project ID: jobtracker-582b9
 - Firestore rules and Storage rules must be configured in Firebase Console
-- Storage rules needed for permit image uploads
+- Storage rules needed for permit and license image uploads

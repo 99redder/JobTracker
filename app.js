@@ -213,10 +213,13 @@ const formConfigs = {
             { name: 'notes', label: 'Notes', type: 'textarea', required: false }
         ]
     },
-    todos: {
-        title: 'Todo',
+    licenses: {
+        title: 'Business License',
         fields: [
-            { name: 'task', label: 'Task', type: 'text', required: true },
+            { name: 'jurisdiction', label: 'Jurisdiction', type: 'text', required: true },
+            { name: 'licenseNumber', label: 'License Number', type: 'text', required: true },
+            { name: 'expirationDate', label: 'Expiration Date', type: 'date', required: true },
+            { name: 'image', label: 'Photo', type: 'file', accept: 'image/*', required: false },
             { name: 'notes', label: 'Notes', type: 'textarea', required: false }
         ]
     }
@@ -382,7 +385,7 @@ auth.onAuthStateChanged((user) => {
         authContainer.classList.add('hidden');
         appContainer.classList.remove('hidden');
         updateAdminUI();
-        autoFlagVehicleRenewals().then(() => loadFollowUps());
+        Promise.all([autoFlagVehicleRenewals(), autoFlagLicenseExpirations()]).then(() => loadFollowUps());
         loadAllData();
     } else {
         currentUser = null;
@@ -608,7 +611,7 @@ document.getElementById('add-vehicle-btn').addEventListener('click', () => openM
 document.getElementById('add-bill-btn').addEventListener('click', () => openModal('bills'));
 document.getElementById('add-deposit-btn').addEventListener('click', () => openModal('deposits'));
 document.getElementById('add-inspection-btn').addEventListener('click', () => openModal('inspections'));
-document.getElementById('add-todo-btn').addEventListener('click', () => openModal('todos'));
+document.getElementById('add-license-btn').addEventListener('click', () => openModal('licenses'));
 document.getElementById('add-activity-btn').addEventListener('click', () => openModal('activity'));
 
 // Helper function to add timeout to promises
@@ -711,7 +714,7 @@ async function loadAllData() {
         loadData('bills'),
         loadData('deposits'),
         loadData('inspections'),
-        loadData('todos'),
+        loadData('licenses'),
         loadData('activity')
     ]);
     hideLoading();
@@ -1337,10 +1340,10 @@ function renderList(category, items) {
         return;
     }
 
-    // For todos, render with todo cards
-    if (category === 'todos') {
+    // For licenses, render with license cards
+    if (category === 'licenses') {
         items.forEach(item => {
-            const card = createTodoCard(item, category);
+            const card = createLicenseCard(item, category);
             listElement.appendChild(card);
         });
         return;
@@ -1645,17 +1648,37 @@ function createInspectionCard(item, category) {
     return card;
 }
 
-// Helper function to create a todo card
-function createTodoCard(item, category) {
+// Helper function to create a license card
+function createLicenseCard(item, category) {
     const card = document.createElement('div');
     card.className = 'item-card';
 
+    // Check if license expires within 30 days
+    const isExpiringSoon = isLicenseExpiringWithin30Days(item.expirationDate);
+    const expirationWarning = isExpiringSoon ? '<span class="renewal-warning">Expiring Soon!</span>' : '';
+
+    const expirationDateFormatted = item.expirationDate
+        ? new Date(item.expirationDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'No Date';
+
+    const imageHtml = item.image ? `
+        <div class="license-image">
+            <a href="${item.image}" target="_blank" rel="noopener">
+                <img src="${item.image}" alt="License photo" class="permit-photo">
+            </a>
+        </div>
+    ` : '';
+
     let cardContent = `
         <div class="card-header">
-            <span class="card-title">${escapeHtml(item.task)}</span>
+            <span class="card-title">${escapeHtml(item.jurisdiction)}</span>
+            ${expirationWarning}
         </div>
         <div class="card-details">
+            <p><strong>License #:</strong> ${escapeHtml(item.licenseNumber)}</p>
+            <p><strong>Expires:</strong> ${expirationDateFormatted}</p>
             ${item.notes ? `<p><strong>Notes:</strong> ${escapeHtml(item.notes)}</p>` : ''}
+            ${imageHtml}
         </div>
         <div class="card-updated">Last updated: ${formatDate(item.updatedAt)}</div>
     `;
@@ -1700,7 +1723,7 @@ function createTodoCard(item, category) {
         });
     } else {
         card.querySelector('.btn-flag').addEventListener('click', () => {
-            const title = item.notes ? `${item.task} - ${item.notes}` : item.task;
+            const title = `${item.jurisdiction} - License #${item.licenseNumber}`;
             flagForFollowUp(category, item.id, title);
         });
     }
@@ -1728,6 +1751,18 @@ function isRegistrationWithin30Days(monthStr) {
     // Check if the renewal month starts within the next 30 days or has already started this month
     const endOfRenewalMonth = new Date(renewalDate.getFullYear(), renewalDate.getMonth() + 1, 0);
     return endOfRenewalMonth >= today && renewalDate <= thirtyDaysFromNow;
+}
+
+// Helper function to check if license expiration is within 30 days
+function isLicenseExpiringWithin30Days(dateStr) {
+    if (!dateStr) return false;
+    const expirationDate = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const thirtyDaysFromNow = new Date(today);
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    // Check if the expiration date is within the next 30 days (and not already expired more than 30 days ago)
+    return expirationDate >= today && expirationDate <= thirtyDaysFromNow;
 }
 
 // Auto-flag vehicles with registration renewal within 30 days
@@ -1765,6 +1800,44 @@ async function autoFlagVehicleRenewals() {
         }
     } catch (error) {
         console.error('Error auto-flagging vehicle renewals:', error);
+    }
+}
+
+// Auto-flag business licenses expiring within 30 days
+async function autoFlagLicenseExpirations() {
+    if (!currentUser) return;
+
+    try {
+        const licensesSnapshot = await db.collection('licenses').get();
+        const followupsSnapshot = await db.collection('followups').get();
+
+        // Get existing flagged license IDs to avoid duplicates
+        const existingFlaggedIds = new Set();
+        followupsSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.category === 'licenses') {
+                existingFlaggedIds.add(data.itemId);
+            }
+        });
+
+        // Check each license for upcoming expiration
+        for (const doc of licensesSnapshot.docs) {
+            const license = doc.data();
+            if (isLicenseExpiringWithin30Days(license.expirationDate) && !existingFlaggedIds.has(doc.id)) {
+                // Auto-flag this license
+                await db.collection('followups').add({
+                    category: 'licenses',
+                    itemId: doc.id,
+                    itemTitle: `${license.jurisdiction} - License #${license.licenseNumber} - Expiring Soon`,
+                    flaggedBy: 'system',
+                    flaggedByEmail: 'Auto-flagged',
+                    flaggedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log(`Auto-flagged license: ${license.jurisdiction} - License #${license.licenseNumber}`);
+            }
+        }
+    } catch (error) {
+        console.error('Error auto-flagging license expirations:', error);
     }
 }
 
