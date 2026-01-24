@@ -135,7 +135,7 @@
                 </svg>
                 <span>Inspections</span>
             </button>
-            <button class="tab-btn admin-only" data-tab="licenses" aria-label="Licenses">
+            <button class="tab-btn" data-tab="licenses" aria-label="Licenses">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="4" width="18" height="16" rx="2"></rect>
                     <line x1="7" y1="8" x2="17" y2="8"></line>
@@ -230,10 +230,10 @@
             </section>
 
             <!-- Business Licenses Section -->
-            <section id="licenses-tab" class="tab-panel hidden admin-only">
+            <section id="licenses-tab" class="tab-panel hidden">
                 <div class="panel-header">
                     <h2>Business Licenses</h2>
-                    <button class="btn btn-add" id="add-license-btn">+ Add</button>
+                    <button class="btn btn-add admin-only" id="add-license-btn">+ Add</button>
                 </div>
                 <div id="licenses-list" class="items-list"></div>
             </section>
