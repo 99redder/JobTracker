@@ -32,7 +32,7 @@ A mobile-first web application for tracking permits, vehicles, bills, deposits, 
 
 ## User Roles
 
-- **Admin**: Full CRUD access, can dismiss follow-ups, sees Licenses and Activity tabs
+- **Admin**: Full CRUD access, can dismiss follow-ups, sees Activity tab
 - **Regular users**: Read-only access, can flag items for admin follow-up
 - Admin UIDs are defined in `ADMIN_UIDS` array in app.js
 
@@ -77,7 +77,6 @@ A mobile-first web application for tracking permits, vehicles, bills, deposits, 
 - Fields: Jurisdiction, License Number, Expiration Date
 - Photo upload via Firebase Storage
 - Auto-flags licenses expiring within 30 days
-- Admin-only tab
 
 ### Conditional Form Fields
 - `showIf` - Show field only when condition met
