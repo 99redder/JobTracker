@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#000000"/>
+
+  <!-- Hard hat -->
+  <g transform="translate(256, 256)">
+    <!-- Hat brim -->
+    <ellipse cx="0" cy="80" rx="160" ry="30" fill="#FCD34D"/>
+
+    <!-- Hat main body -->
+    <path d="M -140 80 Q -140 -80 0 -120 Q 140 -80 140 80 Z" fill="#FCD34D"/>
+
+    <!-- Hat rim/band -->
+    <ellipse cx="0" cy="-40" rx="145" ry="20" fill="#F59E0B"/>
+
+    <!-- Hat center ridge -->
+    <path d="M -10 -120 L -5 -140 L 5 -140 L 10 -120 Z" fill="#F59E0B"/>
+
+    <!-- Shading for depth -->
+    <ellipse cx="0" cy="80" rx="160" ry="30" fill="#F59E0B" opacity="0.3"/>
+
+    <!-- Highlight -->
+    <ellipse cx="-40" cy="-60" rx="30" ry="40" fill="#FEFCE8" opacity="0.3"/>
+  </g>
+</svg>

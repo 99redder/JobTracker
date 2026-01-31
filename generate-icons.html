@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Icon Generator - JobTracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #000;
+            color: #FCD34D;
+        }
+        h1 {
+            text-align: center;
+        }
+        .instructions {
+            background: #171717;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #FCD34D;
+        }
+        .preview {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        .preview-item {
+            text-align: center;
+            background: #171717;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .preview-item canvas {
+            display: block;
+            margin: 10px auto;
+            border: 1px solid #FCD34D;
+        }
+        button {
+            background: #FCD34D;
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #F59E0B;
+        }
+        .button-group {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .success {
+            background: #065f46;
+            color: #d1fae5;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏗️ JobTracker Icon Generator</h1>
+
+    <div class="instructions">
+        <h2>Instructions:</h2>
+        <ol>
+            <li>Click "Generate All Icons" button below</li>
+            <li>Preview icons will appear</li>
+            <li>Click "Download All" to save all icon files</li>
+            <li>Place the downloaded files in your JobTracker directory</li>
+        </ol>
+    </div>
+
+    <div class="button-group">
+        <button onclick="generateIcons()">Generate All Icons</button>
+        <button onclick="downloadAll()" id="downloadBtn" style="display:none;">Download All</button>
+    </div>
+
+    <div class="preview" id="preview"></div>
+
+    <script>
+        const iconSVG = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                <circle cx="256" cy="256" r="256" fill="#000000"/>
+                <g transform="translate(256, 256)">
+                    <ellipse cx="0" cy="80" rx="160" ry="30" fill="#FCD34D"/>
+                    <path d="M -140 80 Q -140 -80 0 -120 Q 140 -80 140 80 Z" fill="#FCD34D"/>
+                    <ellipse cx="0" cy="-40" rx="145" ry="20" fill="#F59E0B"/>
+                    <path d="M -10 -120 L -5 -140 L 5 -140 L 10 -120 Z" fill="#F59E0B"/>
+                    <ellipse cx="0" cy="80" rx="160" ry="30" fill="#F59E0B" opacity="0.3"/>
+                    <ellipse cx="-40" cy="-60" rx="30" ry="40" fill="#FEFCE8" opacity="0.3"/>
+                </g>
+            </svg>
+        `;
+
+        const sizes = [
+            { size: 16, name: 'favicon-16x16.png' },
+            { size: 32, name: 'favicon-32x32.png' },
+            { size: 48, name: 'favicon-48x48.png' },
+            { size: 180, name: 'apple-touch-icon.png' },
+            { size: 192, name: 'icon-192x192.png' },
+            { size: 512, name: 'icon-512x512.png' }
+        ];
+
+        let generatedIcons = [];
+
+        function generateIcons() {
+            const preview = document.getElementById('preview');
+            preview.innerHTML = '';
+            generatedIcons = [];
+
+            sizes.forEach(({ size, name }) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+
+                const img = new Image();
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0, size, size);
+
+                    // Store for download
+                    canvas.toBlob((blob) => {
+                        generatedIcons.push({ blob, name });
+                    });
+
+                    // Add to preview
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'preview-item';
+                    previewItem.innerHTML = `
+                        <div>${name}</div>
+                        <div>${size}x${size}</div>
+                    `;
+                    previewItem.appendChild(canvas);
+                    preview.appendChild(previewItem);
+                };
+
+                const svgBlob = new Blob([iconSVG], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(svgBlob);
+                img.src = url;
+            });
+
+            // Show download button after a delay
+            setTimeout(() => {
+                document.getElementById('downloadBtn').style.display = 'inline-block';
+            }, 1000);
+        }
+
+        function downloadAll() {
+            if (generatedIcons.length === 0) {
+                alert('Please generate icons first!');
+                return;
+            }
+
+            generatedIcons.forEach(({ blob, name }) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+
+            // Show success message
+            const success = document.createElement('div');
+            success.className = 'success';
+            success.textContent = `✓ Successfully downloaded ${generatedIcons.length} icon files!`;
+            document.querySelector('.button-group').appendChild(success);
+        }
+    </script>
+</body>
+</html>
