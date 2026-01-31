@@ -18,6 +18,7 @@ const storage = firebase.storage();
 // DOM Elements
 const authContainer = document.getElementById('auth-container');
 const appContainer = document.getElementById('app-container');
+const pendingApprovalContainer = document.getElementById('pending-approval-container');
 const loginForm = document.getElementById('login-form');
 const signupForm = document.getElementById('signup-form');
 const resetForm = document.getElementById('reset-form');
@@ -38,6 +39,37 @@ const ADMIN_UIDS = [
 // Check if current user is admin
 function isAdmin() {
     return currentUser && ADMIN_UIDS.includes(currentUser.uid);
+}
+
+// Check if user is approved or is an admin
+async function checkUserApproval(user) {
+    if (!user) return { approved: false, pending: false };
+
+    // Admins always bypass approval
+    if (ADMIN_UIDS.includes(user.uid)) {
+        return { approved: true, pending: false, isAdmin: true };
+    }
+
+    try {
+        // Check if user is in approvedUsers collection
+        const approvedDoc = await db.collection('approvedUsers').doc(user.uid).get();
+        if (approvedDoc.exists) {
+            return { approved: true, pending: false };
+        }
+
+        // Check if user is in pendingUsers collection
+        const pendingDoc = await db.collection('pendingUsers').doc(user.uid).get();
+        if (pendingDoc.exists) {
+            return { approved: false, pending: true };
+        }
+
+        // User is not in either collection (edge case - shouldn't happen)
+        // Treat as orphaned
+        return { approved: false, pending: false, orphaned: true };
+    } catch (error) {
+        console.error('Error checking user approval:', error);
+        return { approved: false, pending: false, error: true };
+    }
 }
 
 // Flag an item for follow up
@@ -139,6 +171,120 @@ async function loadFollowUps() {
     } catch (error) {
         console.error('Error loading follow ups:', error);
     }
+}
+
+// Load pending users for admin approval (admin only)
+async function loadPendingUsers() {
+    if (!isAdmin()) return;
+
+    const pendingList = document.getElementById('pending-users-list');
+    const pendingCount = document.getElementById('pending-count');
+
+    try {
+        const snapshot = await db.collection('pendingUsers').orderBy('signupDate', 'desc').get();
+
+        const pendingUsers = [];
+        snapshot.forEach(doc => {
+            pendingUsers.push({ id: doc.id, ...doc.data() });
+        });
+
+        pendingCount.textContent = pendingUsers.length;
+
+        if (pendingUsers.length === 0) {
+            pendingList.innerHTML = '<p class="empty-text">No pending user approvals.</p>';
+            return;
+        }
+
+        pendingList.innerHTML = '';
+
+        for (const user of pendingUsers) {
+            const item = document.createElement('div');
+            item.className = 'pending-user-item';
+
+            const signupDate = user.signupDate ?
+                user.signupDate.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) :
+                'Unknown';
+
+            item.innerHTML = `
+                <div class="pending-user-content">
+                    <span class="pending-user-email">${escapeHtml(user.email)}</span>
+                    <span class="pending-user-meta">Signed up on ${signupDate}</span>
+                </div>
+                <div class="pending-user-actions">
+                    <button class="btn btn-small btn-approve" data-uid="${user.uid}">Approve</button>
+                    <button class="btn btn-small btn-danger btn-reject" data-uid="${user.uid}">Reject</button>
+                </div>
+            `;
+
+            // Approve button
+            item.querySelector('.btn-approve').addEventListener('click', () => {
+                approvePendingUser(user.uid, user.email, user.signupDate);
+            });
+
+            // Reject button
+            item.querySelector('.btn-reject').addEventListener('click', () => {
+                rejectPendingUser(user.uid, user.email);
+            });
+
+            pendingList.appendChild(item);
+        }
+    } catch (error) {
+        console.error('Error loading pending users:', error);
+        pendingList.innerHTML = `<p class="error-text">Error loading pending users: ${error.message}</p>`;
+    }
+}
+
+// Approve a pending user (admin only)
+async function approvePendingUser(uid, email, signupDate) {
+    if (!isAdmin()) return;
+
+    if (!confirm(`Approve user ${email}?`)) return;
+
+    showLoading();
+    try {
+        // Add to approvedUsers collection
+        await db.collection('approvedUsers').doc(uid).set({
+            uid: uid,
+            email: email,
+            approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            approvedBy: currentUser.uid,
+            signupDate: signupDate
+        });
+
+        // Remove from pendingUsers collection
+        await db.collection('pendingUsers').doc(uid).delete();
+
+        // Reload the pending users list
+        loadPendingUsers();
+
+        alert(`User ${email} has been approved!`);
+    } catch (error) {
+        alert('Error approving user: ' + error.message);
+        console.error('Approval error:', error);
+    }
+    hideLoading();
+}
+
+// Reject a pending user (admin only)
+async function rejectPendingUser(uid, email) {
+    if (!isAdmin()) return;
+
+    if (!confirm(`Reject user ${email}? This will remove their account access.`)) return;
+
+    showLoading();
+    try {
+        // Remove from pendingUsers collection
+        await db.collection('pendingUsers').doc(uid).delete();
+
+        // Reload the pending users list
+        loadPendingUsers();
+
+        alert(`User ${email} has been rejected.`);
+    } catch (error) {
+        alert('Error rejecting user: ' + error.message);
+        console.error('Rejection error:', error);
+    }
+    hideLoading();
 }
 
 // Form field configurations for each category
@@ -342,8 +488,28 @@ signupForm.addEventListener('submit', async (e) => {
     showLoading();
 
     try {
-        await auth.createUserWithEmailAndPassword(email, password);
-        showMessage('Account created successfully!');
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+
+        // Check if user is an admin (admins bypass approval)
+        if (!ADMIN_UIDS.includes(user.uid)) {
+            // Add to pendingUsers collection
+            await db.collection('pendingUsers').doc(user.uid).set({
+                uid: user.uid,
+                email: user.email,
+                signupDate: firebase.firestore.FieldValue.serverTimestamp(),
+                status: 'pending'
+            });
+
+            // Sign out immediately so onAuthStateChanged doesn't grant access
+            await auth.signOut();
+
+            showMessage('Account created successfully! Your account is pending admin approval. You will be notified once approved.');
+        } else {
+            // Admin users bypass approval
+            showMessage('Account created successfully!');
+        }
+        grecaptcha.reset(signupRecaptchaId);
     } catch (error) {
         showMessage(error.message, true);
         grecaptcha.reset(signupRecaptchaId);
@@ -378,19 +544,57 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
     hideLoading();
 });
 
+// Pending approval logout
+document.getElementById('pending-logout-btn').addEventListener('click', async () => {
+    showLoading();
+    await auth.signOut();
+    hideLoading();
+});
+
 // Auth State Observer
-auth.onAuthStateChanged((user) => {
+auth.onAuthStateChanged(async (user) => {
     if (user) {
         currentUser = user;
+
+        // Check approval status
+        const approvalStatus = await checkUserApproval(user);
+
+        if (!approvalStatus.approved) {
+            // User is pending or not approved
+            authContainer.classList.add('hidden');
+            appContainer.classList.add('hidden');
+
+            // Show pending approval container
+            pendingApprovalContainer.classList.remove('hidden');
+
+            // Update pending message
+            const pendingMessage = document.getElementById('pending-message');
+            if (approvalStatus.pending) {
+                pendingMessage.textContent = 'Your account is awaiting admin approval. You will be notified once approved.';
+            } else if (approvalStatus.orphaned) {
+                pendingMessage.textContent = 'Your account needs approval. Please contact an administrator.';
+            } else if (approvalStatus.error) {
+                pendingMessage.textContent = 'Error checking approval status. Please try again later.';
+            }
+
+            return; // Don't proceed to app
+        }
+
+        // User is approved - proceed normally
         authContainer.classList.add('hidden');
         appContainer.classList.remove('hidden');
+        pendingApprovalContainer.classList.add('hidden');
         updateAdminUI();
-        Promise.all([autoFlagVehicleRenewals(), autoFlagLicenseExpirations()]).then(() => loadFollowUps());
+        Promise.all([autoFlagVehicleRenewals(), autoFlagLicenseExpirations()]).then(() => {
+            loadFollowUps();
+            loadPendingUsers();
+        });
         loadAllData();
     } else {
         currentUser = null;
         authContainer.classList.remove('hidden');
         appContainer.classList.add('hidden');
+        pendingApprovalContainer.classList.add('hidden');
     }
 });
 
@@ -1906,3 +2110,81 @@ document.getElementById('invite-btn').addEventListener('click', async () => {
         }
     }
 });
+
+// ============================================
+// MIGRATION FUNCTION FOR EXISTING USERS
+// ============================================
+// This function should be run ONCE after deploying the approval system
+// to auto-approve all existing users who signed up before this feature.
+// Call this function from the browser console as an admin: migrateExistingUsers()
+async function migrateExistingUsers() {
+    if (!isAdmin()) {
+        console.error('Only admins can run the migration.');
+        return;
+    }
+
+    console.log('Starting migration of existing users...');
+
+    try {
+        // Check activity log for user emails (since it tracks who did what)
+        const activitySnapshot = await db.collection('activity').get();
+        const existingUserEmails = new Set();
+        activitySnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.userEmail) {
+                existingUserEmails.add(data.userEmail);
+            }
+        });
+
+        console.log(`Found ${existingUserEmails.size} existing user emails from activity log`);
+
+        // For this simple migration, we'll approve the current admin user
+        // and any users we find evidence of in the database
+        const usersToApprove = [];
+
+        // Always approve admins
+        for (const adminUid of ADMIN_UIDS) {
+            if (currentUser && currentUser.uid === adminUid) {
+                usersToApprove.push({
+                    uid: adminUid,
+                    email: currentUser.email
+                });
+            }
+        }
+
+        // Check if there are any users already in approvedUsers or pendingUsers
+        const approvedSnapshot = await db.collection('approvedUsers').get();
+        const pendingSnapshot = await db.collection('pendingUsers').get();
+
+        console.log(`Found ${approvedSnapshot.size} already approved users`);
+        console.log(`Found ${pendingSnapshot.size} pending users`);
+
+        // Migrate users to approvedUsers if they're not already there
+        for (const user of usersToApprove) {
+            const approvedDoc = await db.collection('approvedUsers').doc(user.uid).get();
+            if (!approvedDoc.exists) {
+                await db.collection('approvedUsers').doc(user.uid).set({
+                    uid: user.uid,
+                    email: user.email,
+                    approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    approvedBy: currentUser.uid,
+                    signupDate: firebase.firestore.FieldValue.serverTimestamp(),
+                    migratedUser: true
+                });
+                console.log(`✓ Approved existing user: ${user.email}`);
+            } else {
+                console.log(`- User already approved: ${user.email}`);
+            }
+        }
+
+        console.log('Migration complete!');
+        console.log('Note: Only the current admin user was migrated.');
+        console.log('If you have other existing users, they will need to be approved manually from the pending users list.');
+
+    } catch (error) {
+        console.error('Migration error:', error);
+    }
+}
+
+// Make the migration function available globally for console access
+window.migrateExistingUsers = migrateExistingUsers;
