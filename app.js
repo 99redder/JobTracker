@@ -24,6 +24,9 @@ const signupForm = document.getElementById('signup-form');
 const resetForm = document.getElementById('reset-form');
 const authMessage = document.getElementById('auth-message');
 const modal = document.getElementById('modal');
+const legalModal = document.getElementById('legal-modal');
+const legalTitle = document.getElementById('legal-title');
+const legalBody = document.getElementById('legal-body');
 const deleteModal = document.getElementById('delete-modal');
 const loading = document.getElementById('loading');
 
@@ -417,8 +420,121 @@ document.getElementById('show-login-from-reset').addEventListener('click', (e) =
     resetForm.classList.add('hidden');
 });
 
+// Legal links (login screen)
+const privacyLink = document.getElementById('open-privacy');
+const termsLink = document.getElementById('open-terms');
+const legalCloseBtn = document.getElementById('legal-close-btn');
+const legalCloseX = document.getElementById('legal-close');
+
+if (privacyLink) {
+    privacyLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        openLegalModal('privacy');
+    });
+}
+
+if (termsLink) {
+    termsLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        openLegalModal('terms');
+    });
+}
+
+if (legalCloseBtn) legalCloseBtn.addEventListener('click', closeLegalModal);
+if (legalCloseX) legalCloseX.addEventListener('click', closeLegalModal);
+
+if (legalModal) {
+    legalModal.addEventListener('click', (e) => {
+        if (e.target === legalModal) closeLegalModal();
+    });
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && legalModal && !legalModal.classList.contains('hidden')) {
+        closeLegalModal();
+    }
+});
+
 // reCAPTCHA v2 site key
 const RECAPTCHA_SITE_KEY = '6LcBrU4sAAAAAPvJzPw5NoZTSoO04v2GGI2xBF6M';
+
+// Legal content (shown on login screen)
+const LEGAL_CONTACT_EMAIL = 'redonx99@outlook.com';
+
+function openLegalModal(kind) {
+    if (!legalModal || !legalTitle || !legalBody) return;
+
+    const effectiveDate = 'February 4, 2026';
+
+    if (kind === 'privacy') {
+        legalTitle.textContent = 'Privacy Policy';
+        legalBody.innerHTML = `
+            <p><strong>Effective date:</strong> ${effectiveDate}</p>
+            <p>JobTracker ("we," "our," or "us") respects your privacy. This Privacy Policy explains what information we collect and how we use it when you use the app.</p>
+
+            <h4>Information we collect</h4>
+            <ul>
+                <li><strong>Account information</strong> (e.g., email address) used for authentication.</li>
+                <li><strong>App content</strong> you create (permits, vehicles, bills, deposits, inspections, licenses, tasks, and related notes).</li>
+                <li><strong>Uploaded files</strong> you attach (e.g., photos) stored in Firebase Storage.</li>
+            </ul>
+
+            <h4>How we use information</h4>
+            <ul>
+                <li>To provide and maintain the service (login, data sync, file uploads).</li>
+                <li>To improve reliability and troubleshoot issues.</li>
+                <li>To operate basic security measures (e.g., abuse prevention).</li>
+            </ul>
+
+            <h4>Sharing</h4>
+            <p>We do not sell your data. We share information only with service providers necessary to operate the app (such as Firebase/Google services) or when required by law.</p>
+
+            <h4>Data retention</h4>
+            <p>Data is kept until deleted by an admin or as part of configured cleanup routines. Uploaded files associated with deleted records are deleted best-effort.</p>
+
+            <h4>Your choices</h4>
+            <p>You can request deletion or ask questions by contacting us.</p>
+
+            <h4>Contact</h4>
+            <p>If you have questions about this Privacy Policy, contact <a href="mailto:${LEGAL_CONTACT_EMAIL}">${LEGAL_CONTACT_EMAIL}</a>.</p>
+        `;
+    } else {
+        legalTitle.textContent = 'Terms of Use';
+        legalBody.innerHTML = `
+            <p><strong>Effective date:</strong> ${effectiveDate}</p>
+            <p>By using JobTracker, you agree to these Terms of Use.</p>
+
+            <h4>Use of the service</h4>
+            <ul>
+                <li>You are responsible for activity under your account.</li>
+                <li>Do not use the app for unlawful purposes.</li>
+                <li>Do not attempt to disrupt or abuse the service.</li>
+            </ul>
+
+            <h4>Data and uploads</h4>
+            <p>You retain ownership of the content you submit. You grant us permission to store and process that content to provide the service.</p>
+
+            <h4>Availability</h4>
+            <p>The service is provided "as is" without warranties. We may modify or discontinue features at any time.</p>
+
+            <h4>Limitation of liability</h4>
+            <p>To the maximum extent permitted by law, we are not liable for indirect damages, lost profits, or data loss.</p>
+
+            <h4>Changes</h4>
+            <p>We may update these terms from time to time. Continued use means you accept the updated terms.</p>
+
+            <h4>Contact</h4>
+            <p>If you have questions about these Terms, contact <a href="mailto:${LEGAL_CONTACT_EMAIL}">${LEGAL_CONTACT_EMAIL}</a>.</p>
+        `;
+    }
+
+    legalModal.classList.remove('hidden');
+}
+
+function closeLegalModal() {
+    if (!legalModal) return;
+    legalModal.classList.add('hidden');
+}
 
 // reCAPTCHA widget IDs
 let loginRecaptchaId = null;
