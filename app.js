@@ -712,7 +712,44 @@ function openModal(category, editData = null) {
         input.required = field.showIf ? false : field.required; // Conditional fields not required initially
 
         if (editData && editData[field.name] && field.type !== 'file') {
-            input.value = editData[field.name];
+            const rawVal = editData[field.name];
+
+            // Normalize dates for <input type="date"> to YYYY-MM-DD.
+            // Older records may contain different formats (or Firestore Timestamp objects).
+            if (field.type === 'date') {
+                const toInputDate = (val) => {
+                    if (!val) return '';
+                    // Firestore Timestamp
+                    if (typeof val === 'object' && typeof val.toDate === 'function') {
+                        const d = val.toDate();
+                        if (!isNaN(d)) return d.toISOString().slice(0, 10);
+                    }
+                    if (typeof val !== 'string') return '';
+
+                    const s = val.trim();
+                    // Already in correct format
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+                    // ISO datetime
+                    if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(0, 10);
+                    // Common US format MM/DD/YYYY
+                    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                    if (m) {
+                        const mm = m[1].padStart(2, '0');
+                        const dd = m[2].padStart(2, '0');
+                        const yyyy = m[3];
+                        return `${yyyy}-${mm}-${dd}`;
+                    }
+                    // Last resort: let Date parse it
+                    const d = new Date(s);
+                    if (!isNaN(d)) return d.toISOString().slice(0, 10);
+                    return '';
+                };
+
+                const normalized = toInputDate(rawVal);
+                if (normalized) input.value = normalized;
+            } else {
+                input.value = rawVal;
+            }
         }
 
         div.appendChild(input);
