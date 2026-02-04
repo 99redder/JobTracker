@@ -80,6 +80,12 @@
             </form>
 
             <div id="auth-message" class="message hidden"></div>
+
+            <div class="auth-legal">
+                <a href="#" id="open-privacy">Privacy Policy</a>
+                <span class="legal-sep">·</span>
+                <a href="#" id="open-terms">Terms of Use</a>
+            </div>
         </div>
     </div>
 
@@ -315,6 +321,20 @@
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
                 <button type="submit" class="btn btn-primary" form="modal-form">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legal Modal -->
+    <div id="legal-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="legal-title">Privacy Policy</h3>
+                <button class="modal-close" id="legal-close">&times;</button>
+            </div>
+            <div id="legal-body" class="legal-body"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" id="legal-close-btn">Close</button>
             </div>
         </div>
     </div>
