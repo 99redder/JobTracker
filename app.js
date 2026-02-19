@@ -15,7 +15,9 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
 
-// DOM Elements
+// ============================================
+// DOM ELEMENTS
+// ============================================
 const authContainer = document.getElementById('auth-container');
 const appContainer = document.getElementById('app-container');
 const pendingApprovalContainer = document.getElementById('pending-approval-container');
@@ -30,7 +32,9 @@ const legalBody = document.getElementById('legal-body');
 const deleteModal = document.getElementById('delete-modal');
 const loading = document.getElementById('loading');
 
-// Current user
+// ============================================
+// CONSTANTS & STATE
+// ============================================
 let currentUser = null;
 let deleteCallback = null;
 
@@ -44,7 +48,9 @@ function isAdmin() {
     return currentUser && ADMIN_UIDS.includes(currentUser.uid);
 }
 
-// Check if user is approved or is an admin
+// ============================================
+// USER APPROVAL SYSTEM
+// ============================================
 async function checkUserApproval(user) {
     if (!user) return { approved: false, pending: false };
 
@@ -75,7 +81,9 @@ async function checkUserApproval(user) {
     }
 }
 
-// Flag an item for follow up
+// ============================================
+// FOLLOW-UP SYSTEM
+// ============================================
 async function flagForFollowUp(category, itemId, itemTitle) {
     if (!currentUser) return;
 
@@ -290,7 +298,11 @@ async function rejectPendingUser(uid, email) {
     hideLoading();
 }
 
-// Form field configurations for each category
+// ============================================
+// FORM CONFIGURATIONS
+// Each entry defines the modal fields for that category.
+// Supports showIf, disableIf, requiredIf for conditional fields.
+// ============================================
 const formConfigs = {
     permits: {
         title: 'Permit',
@@ -374,7 +386,9 @@ const formConfigs = {
     }
 };
 
-// Show/Hide Loading
+// ============================================
+// UI UTILITIES & AUTH HANDLERS
+// ============================================
 function showLoading() {
     loading.classList.remove('hidden');
 }
@@ -687,7 +701,10 @@ document.getElementById('pending-logout-btn').addEventListener('click', async ()
     hideLoading();
 });
 
-// Auth State Observer
+// ============================================
+// AUTH STATE OBSERVER
+// Three containers: auth-container, app-container, pending-approval-container
+// ============================================
 auth.onAuthStateChanged(async (user) => {
     if (user) {
         currentUser = user;
@@ -1044,7 +1061,9 @@ document.getElementById('add-inspection-btn').addEventListener('click', () => op
 document.getElementById('add-license-btn').addEventListener('click', () => openModal('licenses'));
 document.getElementById('add-activity-btn').addEventListener('click', () => openModal('activity'));
 
-// Helper function to add timeout to promises
+// ============================================
+// DATA LOADING & CLEANUP
+// ============================================
 function withTimeout(promise, ms) {
     const timeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Operation timed out')), ms)
@@ -1309,8 +1328,12 @@ document.getElementById('vehicle-sort').addEventListener('change', () => {
 const collapsedCounties = new Set();
 const collapsedDates = new Set();
 const collapsedBillStatus = new Set();
+let paidExpensesSortDesc = false;
 
-// Helper function to create a task line item
+// ============================================
+// RENDERING: CARD BUILDERS & LIST RENDERER
+// renderList() at ~line 1480 dispatches to the card builders below.
+// ============================================
 function createTaskItem(item, category) {
     const taskItem = document.createElement('div');
     taskItem.className = 'task-item';
@@ -1739,7 +1762,13 @@ function renderList(category, items) {
             <span class="status-toggle">${expensesCollapsed ? '▶' : '▼'}</span>
             <span class="status-name">Paid Expenses</span>
             <span class="status-count">(${paidExpenses.length})</span>
+            <button class="expense-sort-btn" title="Sort by Paid On date">${paidExpensesSortDesc ? 'Date ↓' : 'Date ↑'}</button>
         `;
+        expensesHeader.querySelector('.expense-sort-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            paidExpensesSortDesc = !paidExpensesSortDesc;
+            renderList(category, items);
+        });
         expensesHeader.addEventListener('click', () => {
             if (collapsedBillStatus.has('Expenses')) {
                 collapsedBillStatus.delete('Expenses');
@@ -1755,7 +1784,12 @@ function renderList(category, items) {
         if (paidExpenses.length === 0) {
             expensesContent.innerHTML = '<p class="empty-text">No paid expenses.</p>';
         } else {
-            paidExpenses.forEach(item => {
+            const sortedExpenses = [...paidExpenses].sort((a, b) => {
+                const dateA = a.paidOn ? new Date(a.paidOn) : new Date(0);
+                const dateB = b.paidOn ? new Date(b.paidOn) : new Date(0);
+                return paidExpensesSortDesc ? dateB - dateA : dateA - dateB;
+            });
+            sortedExpenses.forEach(item => {
                 expensesContent.appendChild(createBillCard(item, category));
             });
         }
@@ -2284,7 +2318,9 @@ async function autoFlagLicenseExpirations() {
     }
 }
 
-// Helper function to escape HTML
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
