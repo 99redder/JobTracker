@@ -1328,6 +1328,7 @@ document.getElementById('vehicle-sort').addEventListener('change', () => {
 const collapsedCounties = new Set();
 const collapsedDates = new Set();
 const collapsedBillStatus = new Set();
+let paidBillsSortDesc = false;
 let paidExpensesSortDesc = false;
 
 // ============================================
@@ -1728,7 +1729,13 @@ function renderList(category, items) {
             <span class="status-toggle">${paidCollapsed ? '▶' : '▼'}</span>
             <span class="status-name">Paid Bills</span>
             <span class="status-count">(${paidBills.length})</span>
+            <button class="expense-sort-btn" title="Sort by Paid On date">${paidBillsSortDesc ? 'Date ↓' : 'Date ↑'}</button>
         `;
+        paidHeader.querySelector('.expense-sort-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            paidBillsSortDesc = !paidBillsSortDesc;
+            renderList(category, items);
+        });
         paidHeader.addEventListener('click', () => {
             if (collapsedBillStatus.has('Paid')) {
                 collapsedBillStatus.delete('Paid');
@@ -1744,7 +1751,12 @@ function renderList(category, items) {
         if (paidBills.length === 0) {
             paidContent.innerHTML = '<p class="empty-text">No paid bills.</p>';
         } else {
-            paidBills.forEach(item => {
+            const sortedBills = [...paidBills].sort((a, b) => {
+                const dateA = a.paidOn ? new Date(a.paidOn) : new Date(0);
+                const dateB = b.paidOn ? new Date(b.paidOn) : new Date(0);
+                return paidBillsSortDesc ? dateB - dateA : dateA - dateB;
+            });
+            sortedBills.forEach(item => {
                 paidContent.appendChild(createBillCard(item, category));
             });
         }
