@@ -1052,6 +1052,52 @@ modal.addEventListener('click', (e) => {
     if (e.target === modal) closeModal();
 });
 
+// Unpaid Bills Summary Modal
+function showUnpaidSummary(unpaidBills) {
+    const body = document.getElementById('summary-body');
+    const summaryModal = document.getElementById('unpaid-summary-modal');
+
+    body.innerHTML = '';
+
+    if (unpaidBills.length === 0) {
+        body.innerHTML = '<p class="empty-text">No unpaid bills.</p>';
+    } else {
+        let total = 0;
+        unpaidBills.forEach(item => {
+            const amount = parseFloat(item.amount || 0);
+            total += amount;
+            const row = document.createElement('div');
+            row.className = 'summary-row';
+            row.innerHTML = `
+                <span class="summary-vendor">${escapeHtml(item.vendor)}</span>
+                <span class="summary-amount">$${amount.toFixed(2)}</span>
+            `;
+            body.appendChild(row);
+        });
+
+        const divider = document.createElement('hr');
+        divider.className = 'summary-divider';
+        body.appendChild(divider);
+
+        const totalRow = document.createElement('div');
+        totalRow.className = 'summary-total-row';
+        totalRow.innerHTML = `
+            <span>Total</span>
+            <span>$${total.toFixed(2)}</span>
+        `;
+        body.appendChild(totalRow);
+    }
+
+    summaryModal.classList.remove('hidden');
+}
+
+const unpaidSummaryModal = document.getElementById('unpaid-summary-modal');
+document.getElementById('summary-close').addEventListener('click', () => unpaidSummaryModal.classList.add('hidden'));
+document.getElementById('summary-close-btn').addEventListener('click', () => unpaidSummaryModal.classList.add('hidden'));
+unpaidSummaryModal.addEventListener('click', (e) => {
+    if (e.target === unpaidSummaryModal) unpaidSummaryModal.classList.add('hidden');
+});
+
 // Add buttons
 document.getElementById('add-permit-btn').addEventListener('click', () => openModal('permits'));
 document.getElementById('add-vehicle-btn').addEventListener('click', () => openModal('vehicles'));
@@ -1695,7 +1741,12 @@ function renderList(category, items) {
             <span class="status-toggle">${unpaidCollapsed ? '▶' : '▼'}</span>
             <span class="status-name">Unpaid Bills</span>
             <span class="status-count">(${unpaidBills.length})</span>
+            <button class="expense-sort-btn" title="View summary of all unpaid bills">Summary</button>
         `;
+        unpaidHeader.querySelector('.expense-sort-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            showUnpaidSummary(unpaidBills);
+        });
         unpaidHeader.addEventListener('click', () => {
             if (collapsedBillStatus.has('Unpaid')) {
                 collapsedBillStatus.delete('Unpaid');

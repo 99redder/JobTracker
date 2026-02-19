@@ -716,6 +716,55 @@ body {
     color: #000;
 }
 
+/* Unpaid Bills Summary Modal */
+.modal-summary {
+    max-height: 75vh;
+}
+
+.summary-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 1rem;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.95rem;
+}
+
+.summary-vendor {
+    color: var(--text-color);
+    flex: 1;
+    padding-right: 1rem;
+}
+
+.summary-amount {
+    color: var(--text-color);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.summary-divider {
+    border: none;
+    border-top: 2px solid var(--primary-color);
+    margin: 0.5rem 0;
+}
+
+.summary-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0 0.25rem;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--primary-color);
+}
+
 /* Task Items */
 .task-item {
     display: flex;
