@@ -14,8 +14,8 @@ A mobile-first web application for tracking permits, vehicles, bills, deposits, 
 ## Key Files
 
 - `index.html` - Main HTML structure, Firebase SDK imports, tab navigation
-- `app.js` - All application logic, Firebase integration, form handling (~2450 lines)
-- `styles.css` - All styling, mobile-first responsive design (~1400 lines)
+- `app.js` - All application logic, Firebase integration, form handling (~2500 lines)
+- `styles.css` - All styling, mobile-first responsive design, desktop layout (~1540 lines)
 - `manifest.json` - PWA manifest
 - `sw.js` - Service worker for offline support
 - `functions/index.js` - Firebase Cloud Functions (storage cleanup on document delete)
@@ -93,8 +93,15 @@ Google sign-in users who haven't signed up before are auto-added to `pendingUser
 - Three collapsible sections: Unpaid Bills, Paid Bills, Paid Expenses
 - "Paid On" date field (`paidOn`) appears when status is Paid
 - Check number field appears when payment method is Check
+- **Unpaid Bills** section has a "Summary" button that opens `#unpaid-summary-modal`
+  - Shows vendor + amount per bill, yellow divider, bold total
+  - `showUnpaidSummary(unpaidBills)` in app.js (UI Utilities section, line ~1060)
+  - CSS classes: `.modal-summary`, `.summary-body`, `.summary-row`, `.summary-vendor`, `.summary-amount`, `.summary-divider`, `.summary-total-row`
+- **Paid Bills** section has a sort toggle button (Date ↑ / Date ↓) to sort by `paidOn` date
+  - Sort state: `paidBillsSortDesc` (module-level boolean, default `false` = ascending)
 - **Paid Expenses** section has a sort toggle button (Date ↑ / Date ↓) to sort by `paidOn` date
   - Sort state: `paidExpensesSortDesc` (module-level boolean, default `false` = ascending)
+- Both sort buttons and the Summary button reuse the `.expense-sort-btn` CSS class
 - Auto-cleanup: paid bills older than 1 year (`cleanupOldPaidBills` at line ~1210)
 
 ### Activity
@@ -129,10 +136,10 @@ The file is organized with `// ====` section comments at major boundaries:
 | User Approval System | 50 | `checkUserApproval`, `loadPendingUsers`, `approvePendingUser`, `rejectPendingUser` |
 | Follow-Up System | 85 | `flagForFollowUp`, `dismissFollowUp`, `loadFollowUps` |
 | Form Configurations | 300 | `formConfigs` object — field definitions for all 8 categories |
-| UI Utilities & Auth Handlers | 390 | `showLoading`, `showMessage`, login/signup/reset/Google handlers, `openLegalModal` |
+| UI Utilities & Auth Handlers | 390 | `showLoading`, `showMessage`, login/signup/reset/Google handlers, `openLegalModal`, `showUnpaidSummary` |
 | Auth State Observer | 705 | `auth.onAuthStateChanged`, `updateAdminUI`, `openModal`, `closeModal` |
 | Data Loading & Cleanup | 1060 | `withTimeout`, `loadAllData`, `cleanupOldActivities`, `cleanupOldPaidBills`, `loadData` |
-| Rendering | 1325 | `collapsedBillStatus`, `paidExpensesSortDesc`, card builders (`createTaskItem`, `createPermitCard`, `createBillCard`, etc.), `renderList` |
+| Rendering | 1325 | `collapsedBillStatus`, `paidBillsSortDesc`, `paidExpensesSortDesc`, card builders (`createTaskItem`, `createPermitCard`, `createBillCard`, etc.), `renderList` |
 | Utility Functions | 2315 | `escapeHtml`, `formatDate`, `formatMonth`, `isRegistrationWithin30Days`, `isLicenseExpiringWithin30Days`, `autoFlagVehicleRenewals`, `autoFlagLicenseExpirations` |
 | Migration Function | 2380 | `migrateExistingUsers()` — run once from console to approve pre-existing users |
 
@@ -140,14 +147,34 @@ The file is organized with `// ====` section comments at major boundaries:
 
 - `loadData(category)` fetches from Firestore and calls `renderList(category, items)`
 - `renderList()` dispatches to category-specific rendering:
-  - Bills: renders three collapsible sections (Unpaid Bills, Paid Bills, Paid Expenses)
-  - Permits: groups by county or city
+  - Bills: renders three collapsible `.bill-status-group` divs (Unpaid, Paid Bills, Paid Expenses) — early return
+  - Permits: groups into `.county-group` divs (county permits) or `.county-group.city-permit-group` divs (city permits) — early return
   - Deposits: `createDepositCard()`
   - Inspections: `createInspectionCard()`
   - Licenses: `createLicenseCard()`
   - Vehicles: `createTaskItem()` (sortable)
-  - Activity: `createTaskItem()`, grouped by date
+  - Activity: `createTaskItem()`, grouped into `.date-group` divs by date — early return
+- Group divs (`.bill-status-group`, `.county-group`, `.date-group`) are appended directly to the `.items-list` element and need `grid-column: 1 / -1` in grid layouts to prevent splitting across columns
 - Admin-only UI elements use the `.admin-only` CSS class; toggled by `updateAdminUI()`
+
+## Desktop Layout
+
+At ≥1100px the app automatically switches to a sidebar layout via a `@media (min-width: 1100px)` block at the end of `styles.css`. **Mobile layout below 1100px is completely unchanged.**
+
+### What changes at ≥1100px
+- `#app-container` becomes a CSS Grid: `220px sidebar | 1fr content`
+- `.app-header` spans both columns (row 1)
+- `.tab-nav` moves to the left sidebar (row 2, col 1): vertical flex, `border-right`, `background: #111111`
+- `.tab-btn` switches to full-width horizontal rows with a yellow left-border active indicator instead of bottom-border
+- `.tab-content` fills the right column (row 2, col 2), scrolls independently, no `max-width` cap
+- `.modal-content` widens to `max-width: 640px`
+- `.bill-status-group`, `.county-group`, `.date-group` get `grid-column: 1 / -1` so grouped sections (bills, permits, activity) always span full width rather than splitting into card columns
+
+### What does NOT change
+- All mobile CSS below 1100px
+- `index.html`, `app.js`, `manifest.json`, `sw.js` — no changes needed
+- Tab switching logic — class toggling works identically in both layouts
+- `.invite-container` — `position: fixed` is viewport-relative, unaffected by grid
 
 ## Security
 
