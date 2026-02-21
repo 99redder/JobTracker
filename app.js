@@ -30,13 +30,17 @@ const legalModal = document.getElementById('legal-modal');
 const legalTitle = document.getElementById('legal-title');
 const legalBody = document.getElementById('legal-body');
 const deleteModal = document.getElementById('delete-modal');
+const confirmModalTitle = document.getElementById('confirm-modal-title');
+const confirmModalMessage = document.getElementById('confirm-modal-message');
+const confirmModalCancelBtn = document.getElementById('cancel-delete');
+const confirmModalConfirmBtn = document.getElementById('confirm-delete');
 const loading = document.getElementById('loading');
 
 // ============================================
 // CONSTANTS & STATE
 // ============================================
 let currentUser = null;
-let deleteCallback = null;
+let confirmCallback = null;
 
 // Admin user IDs - add your admin UIDs here
 const ADMIN_UIDS = [
@@ -249,7 +253,13 @@ async function loadPendingUsers() {
 async function approvePendingUser(uid, email, signupDate) {
     if (!isAdmin()) return;
 
-    if (!confirm(`Approve user ${email}?`)) return;
+    const confirmed = await showConfirmDialog({
+        title: 'Approve User',
+        message: `Approve user ${email}?`,
+        confirmText: 'Approve',
+        confirmClass: 'btn-primary'
+    });
+    if (!confirmed) return;
 
     showLoading();
     try {
@@ -268,9 +278,9 @@ async function approvePendingUser(uid, email, signupDate) {
         // Reload the pending users list
         loadPendingUsers();
 
-        alert(`User ${email} has been approved!`);
+        showMessage(`User ${email} has been approved.`);
     } catch (error) {
-        alert('Error approving user: ' + error.message);
+        showMessage('Error approving user: ' + error.message, true);
         console.error('Approval error:', error);
     }
     hideLoading();
@@ -280,7 +290,13 @@ async function approvePendingUser(uid, email, signupDate) {
 async function rejectPendingUser(uid, email) {
     if (!isAdmin()) return;
 
-    if (!confirm(`Reject user ${email}? This will remove their account access.`)) return;
+    const confirmed = await showConfirmDialog({
+        title: 'Reject User',
+        message: `Reject user ${email}? This will remove their account access.`,
+        confirmText: 'Reject',
+        confirmClass: 'btn-danger'
+    });
+    if (!confirmed) return;
 
     showLoading();
     try {
@@ -290,9 +306,9 @@ async function rejectPendingUser(uid, email) {
         // Reload the pending users list
         loadPendingUsers();
 
-        alert(`User ${email} has been rejected.`);
+        showMessage(`User ${email} has been rejected.`);
     } catch (error) {
-        alert('Error rejecting user: ' + error.message);
+        showMessage('Error rejecting user: ' + error.message, true);
         console.error('Rejection error:', error);
     }
     hideLoading();
@@ -1229,25 +1245,72 @@ document.getElementById('modal-form').addEventListener('submit', async (e) => {
     hideLoading();
 });
 
-// Delete Confirmation
-function showDeleteConfirm(callback) {
-    deleteCallback = callback;
-    deleteModal.classList.remove('hidden');
+// Confirmation Modal (Delete + Approval actions)
+function resetConfirmModalUi() {
+    confirmModalTitle.textContent = 'Confirm Delete';
+    confirmModalMessage.textContent = 'Are you sure you want to delete this entry?';
+    confirmModalConfirmBtn.textContent = 'Delete';
+    confirmModalConfirmBtn.classList.remove('btn-primary');
+    confirmModalConfirmBtn.classList.add('btn-danger');
 }
 
-document.getElementById('cancel-delete').addEventListener('click', () => {
+function closeConfirmDialog() {
     deleteModal.classList.add('hidden');
-    deleteCallback = null;
+    confirmCallback = null;
+    resetConfirmModalUi();
+}
+
+function showConfirmDialog({
+    title = 'Confirm Action',
+    message = 'Are you sure?',
+    confirmText = 'Confirm',
+    confirmClass = 'btn-primary'
+} = {}) {
+    confirmModalTitle.textContent = title;
+    confirmModalMessage.textContent = message;
+    confirmModalConfirmBtn.textContent = confirmText;
+    confirmModalConfirmBtn.classList.remove('btn-danger', 'btn-primary');
+    confirmModalConfirmBtn.classList.add(confirmClass);
+
+    deleteModal.classList.remove('hidden');
+
+    return new Promise((resolve) => {
+        confirmCallback = (accepted) => {
+            closeConfirmDialog();
+            resolve(accepted);
+        };
+    });
+}
+
+function showDeleteConfirm(callback) {
+    showConfirmDialog({
+        title: 'Confirm Delete',
+        message: 'Are you sure you want to delete this entry?',
+        confirmText: 'Delete',
+        confirmClass: 'btn-danger'
+    }).then(async (confirmed) => {
+        if (!confirmed) return;
+        showLoading();
+        await callback();
+        hideLoading();
+    });
+}
+
+confirmModalCancelBtn.addEventListener('click', () => {
+    if (confirmCallback) confirmCallback(false);
+    else closeConfirmDialog();
 });
 
-document.getElementById('confirm-delete').addEventListener('click', async () => {
-    if (deleteCallback) {
-        showLoading();
-        await deleteCallback();
-        hideLoading();
+confirmModalConfirmBtn.addEventListener('click', () => {
+    if (confirmCallback) confirmCallback(true);
+    else closeConfirmDialog();
+});
+
+deleteModal.addEventListener('click', (e) => {
+    if (e.target === deleteModal) {
+        if (confirmCallback) confirmCallback(false);
+        else closeConfirmDialog();
     }
-    deleteModal.classList.add('hidden');
-    deleteCallback = null;
 });
 
 // Load Data Functions
