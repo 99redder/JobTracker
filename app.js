@@ -471,6 +471,7 @@ document.addEventListener('keydown', (e) => {
 
 // reCAPTCHA v2 site key
 const RECAPTCHA_SITE_KEY = '6LcBrU4sAAAAAPvJzPw5NoZTSoO04v2GGI2xBF6M';
+const RECAPTCHA_VERIFY_URL = 'https://us-central1-jobtracker-582b9.cloudfunctions.net/verifyRecaptchaToken';
 
 // Legal content (shown on login screen)
 const LEGAL_CONTACT_EMAIL = 'redonx99@gmail.com';
@@ -569,6 +570,28 @@ window.onRecaptchaLoad = function() {
     });
 };
 
+async function verifyRecaptchaToken(recaptchaToken) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    try {
+        const response = await fetch(RECAPTCHA_VERIFY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: recaptchaToken }),
+            signal: controller.signal
+        });
+
+        const data = await response.json().catch(() => ({}));
+        return response.ok && data.ok === true;
+    } catch (error) {
+        console.error('reCAPTCHA verify request failed:', error);
+        return false;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
 // Login
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -577,6 +600,13 @@ loginForm.addEventListener('submit', async (e) => {
     const recaptchaResponse = grecaptcha.getResponse(loginRecaptchaId);
     if (!recaptchaResponse) {
         showMessage('Please complete the CAPTCHA', true);
+        return;
+    }
+
+    const verified = await verifyRecaptchaToken(recaptchaResponse);
+    if (!verified) {
+        showMessage('CAPTCHA verification failed. Please try again.', true);
+        grecaptcha.reset(loginRecaptchaId);
         return;
     }
 
@@ -632,6 +662,13 @@ signupForm.addEventListener('submit', async (e) => {
     const recaptchaResponse = grecaptcha.getResponse(signupRecaptchaId);
     if (!recaptchaResponse) {
         showMessage('Please complete the CAPTCHA', true);
+        return;
+    }
+
+    const verified = await verifyRecaptchaToken(recaptchaResponse);
+    if (!verified) {
+        showMessage('CAPTCHA verification failed. Please try again.', true);
+        grecaptcha.reset(signupRecaptchaId);
         return;
     }
 

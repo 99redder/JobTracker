@@ -56,3 +56,52 @@ function makeOnDeleteHandler(collectionName, imageFieldName) {
 
 exports.onPermitDeleted = makeOnDeleteHandler('permits', 'image');
 exports.onLicenseDeleted = makeOnDeleteHandler('licenses', 'image');
+
+exports.verifyRecaptchaToken = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
+
+  const secret = functions.config()?.recaptcha?.secret || process.env.RECAPTCHA_SECRET || '';
+  if (!secret) {
+    return res.status(500).json({ ok: false, error: 'reCAPTCHA secret is not configured on backend' });
+  }
+
+  const token = (req.body?.token || '').toString().trim();
+  if (!token) {
+    return res.status(400).json({ ok: false, error: 'Missing token' });
+  }
+
+  try {
+    const params = new URLSearchParams();
+    params.append('secret', secret);
+    params.append('response', token);
+
+    const remoteIp = (req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim();
+    if (remoteIp) params.append('remoteip', remoteIp);
+
+    const verifyRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+
+    const data = await verifyRes.json();
+    if (!data.success) {
+      return res.status(403).json({ ok: false, error: 'reCAPTCHA verification failed', details: data['error-codes'] || [] });
+    }
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('reCAPTCHA verify error', err);
+    return res.status(500).json({ ok: false, error: 'Verification request failed' });
+  }
+});
