@@ -1,5 +1,8 @@
 const functions = require('firebase-functions');
+const { defineString } = require('firebase-functions/params');
 const admin = require('firebase-admin');
+
+const RECAPTCHA_SECRET = defineString('RECAPTCHA_SECRET');
 
 admin.initializeApp();
 
@@ -70,7 +73,7 @@ exports.verifyRecaptchaToken = functions.https.onRequest(async (req, res) => {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 
-  const secret = functions.config()?.recaptcha?.secret || process.env.RECAPTCHA_SECRET || '';
+  const secret = RECAPTCHA_SECRET.value() || process.env.RECAPTCHA_SECRET || '';
   if (!secret) {
     return res.status(500).json({ ok: false, error: 'reCAPTCHA secret is not configured on backend' });
   }
