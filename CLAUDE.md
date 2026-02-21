@@ -52,13 +52,19 @@ New user registration requires admin approval before accessing the app:
 
 Google sign-in users who haven't signed up before are auto-added to `pendingUsers` as "orphaned" accounts.
 
+**UX update (2026-02-21):** Approval/rejection confirmations are now branded in-app modals (reusing `#delete-modal`) via `showConfirmDialog(...)` in `app.js` instead of browser-native `confirm()`/`alert()` dialogs.
+
 **Migration**: When first deploying the approval system, run `migrateExistingUsers()` from the browser console as an admin to auto-approve pre-existing users (app.js line ~2390).
 
 ## Authentication
 
 - Firebase Email/Password auth + Google Sign-In (popup)
 - reCAPTCHA v2 (checkbox) on login and signup forms
-- `RECAPTCHA_SITE_KEY` constant defined at app.js line ~465
+- Frontend constants:
+  - `RECAPTCHA_SITE_KEY`
+  - `RECAPTCHA_VERIFY_URL` (Cloud Function endpoint)
+- Backend verification is required and implemented in Firebase Functions (`verifyRecaptchaToken`) before login/signup proceeds.
+- reCAPTCHA backend secret now uses Firebase **params API** (`defineString('RECAPTCHA_SECRET')`) — not deprecated `functions.config()`.
 - Three UI containers: `auth-container`, `app-container`, `pending-approval-container`
 - Auth state observer at app.js line ~700 routes users to the correct container
 
@@ -205,6 +211,14 @@ Deploy (from repo root):
 ```bash
 firebase deploy --only functions
 ```
+
+For reCAPTCHA backend verification, ensure params secret is set before deploy:
+
+```bash
+firebase deploy --only functions
+```
+
+Firebase CLI will prompt for `RECAPTCHA_SECRET` (or set it ahead of time in params).
 
 ## Firebase Console
 
