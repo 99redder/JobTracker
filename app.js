@@ -1,13 +1,9 @@
-// Firebase Configuration
-const firebaseConfig = {
-  apiKey: "__REMOVED_GOOGLE_API_KEY__",
-  authDomain: "jobtracker-582b9.firebaseapp.com",
-  projectId: "jobtracker-582b9",
-  storageBucket: "jobtracker-582b9.firebasestorage.app",
-  messagingSenderId: "419043976290",
-  appId: "1:419043976290:web:b1ec09ed4dfda93ab59d3b"
-};
+// Firebase Configuration (injected from local, untracked file)
+const firebaseConfig = window.JOBTRACKER_FIREBASE_CONFIG || null;
 
+if (!firebaseConfig || !firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.appId) {
+  throw new Error('Missing JOBTRACKER_FIREBASE_CONFIG. Create firebase-config.local.js from firebase-config.local.example.js');
+}
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
