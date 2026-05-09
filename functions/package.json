@@ -2,11 +2,11 @@
   "name": "jobtracker-functions",
   "private": true,
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "main": "index.js",
   "dependencies": {
-    "firebase-admin": "^12.6.0",
-    "firebase-functions": "^4.7.0"
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^4.9.0"
   }
 }
