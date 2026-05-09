@@ -10,16 +10,13 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid in ['H9Iu95HshTNjQ86JZlH36hHsBw02'];
     }
 
-    function ownsExistingRecord() {
-      return isSignedIn() && resource.data.userId == request.auth.uid;
+    function isApprovedUser() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/approvedUsers/$(request.auth.uid));
     }
 
-    function ownsNewRecord() {
-      return isSignedIn() && request.resource.data.userId == request.auth.uid;
-    }
-
-    function keepsRecordOwner() {
-      return ownsExistingRecord() && ownsNewRecord();
+    function canUseAppRecords() {
+      return isAdmin() || isApprovedUser();
     }
 
     match /{document=**} {
@@ -27,45 +24,31 @@ service cloud.firestore {
     }
 
     match /permits/{docId} {
-      allow read, delete: if isAdmin() || ownsExistingRecord();
-      allow create: if isAdmin() || ownsNewRecord();
-      allow update: if isAdmin() || keepsRecordOwner();
+      allow read, write: if canUseAppRecords();
     }
 
     match /vehicles/{docId} {
-      allow read, delete: if isAdmin() || ownsExistingRecord();
-      allow create: if isAdmin() || ownsNewRecord();
-      allow update: if isAdmin() || keepsRecordOwner();
+      allow read, write: if canUseAppRecords();
     }
 
     match /bills/{docId} {
-      allow read, delete: if isAdmin() || ownsExistingRecord();
-      allow create: if isAdmin() || ownsNewRecord();
-      allow update: if isAdmin() || keepsRecordOwner();
+      allow read, write: if canUseAppRecords();
     }
 
     match /deposits/{docId} {
-      allow read, delete: if isAdmin() || ownsExistingRecord();
-      allow create: if isAdmin() || ownsNewRecord();
-      allow update: if isAdmin() || keepsRecordOwner();
+      allow read, write: if canUseAppRecords();
     }
 
     match /inspections/{docId} {
-      allow read, delete: if isAdmin() || ownsExistingRecord();
-      allow create: if isAdmin() || ownsNewRecord();
-      allow update: if isAdmin() || keepsRecordOwner();
+      allow read, write: if canUseAppRecords();
     }
 
     match /licenses/{docId} {
-      allow read, delete: if isAdmin() || ownsExistingRecord();
-      allow create: if isAdmin() || ownsNewRecord();
-      allow update: if isAdmin() || keepsRecordOwner();
+      allow read, write: if canUseAppRecords();
     }
 
     match /activity/{docId} {
-      allow read, delete: if isAdmin() || ownsExistingRecord();
-      allow create: if isAdmin() || ownsNewRecord();
-      allow update: if isAdmin() || keepsRecordOwner();
+      allow read, write: if canUseAppRecords();
     }
 
     match /approvedUsers/{uid} {
