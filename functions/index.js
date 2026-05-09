@@ -4,6 +4,13 @@ const admin = require('firebase-admin');
 
 const RECAPTCHA_SECRET = defineString('RECAPTCHA_SECRET');
 
+const ALLOWED_ORIGINS = [
+  'https://99redder.github.io',
+  'https://jobtracker-582b9.web.app',
+  'https://jobtracker-582b9.firebaseapp.com',
+  'http://localhost:5000'
+];
+
 admin.initializeApp();
 
 const bucket = () => admin.storage().bucket();
@@ -61,16 +68,26 @@ exports.onPermitDeleted = makeOnDeleteHandler('permits', 'image');
 exports.onLicenseDeleted = makeOnDeleteHandler('licenses', 'image');
 
 exports.verifyRecaptchaToken = functions.https.onRequest(async (req, res) => {
-  res.set('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  const isAllowedOrigin = ALLOWED_ORIGINS.includes(origin);
+
+  if (isAllowedOrigin) {
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Vary', 'Origin');
+  }
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    return res.status(204).send('');
+    return res.status(isAllowedOrigin ? 204 : 403).send('');
   }
 
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
+
+  if (!isAllowedOrigin) {
+    return res.status(403).json({ ok: false, error: 'Origin not allowed' });
   }
 
   const secret = RECAPTCHA_SECRET.value() || process.env.RECAPTCHA_SECRET || '';

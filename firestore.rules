@@ -1,0 +1,92 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.uid in ['H9Iu95HshTNjQ86JZlH36hHsBw02'];
+    }
+
+    function ownsExistingRecord() {
+      return isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    function ownsNewRecord() {
+      return isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    function keepsRecordOwner() {
+      return ownsExistingRecord() && ownsNewRecord();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /permits/{docId} {
+      allow read, delete: if isAdmin() || ownsExistingRecord();
+      allow create: if isAdmin() || ownsNewRecord();
+      allow update: if isAdmin() || keepsRecordOwner();
+    }
+
+    match /vehicles/{docId} {
+      allow read, delete: if isAdmin() || ownsExistingRecord();
+      allow create: if isAdmin() || ownsNewRecord();
+      allow update: if isAdmin() || keepsRecordOwner();
+    }
+
+    match /bills/{docId} {
+      allow read, delete: if isAdmin() || ownsExistingRecord();
+      allow create: if isAdmin() || ownsNewRecord();
+      allow update: if isAdmin() || keepsRecordOwner();
+    }
+
+    match /deposits/{docId} {
+      allow read, delete: if isAdmin() || ownsExistingRecord();
+      allow create: if isAdmin() || ownsNewRecord();
+      allow update: if isAdmin() || keepsRecordOwner();
+    }
+
+    match /inspections/{docId} {
+      allow read, delete: if isAdmin() || ownsExistingRecord();
+      allow create: if isAdmin() || ownsNewRecord();
+      allow update: if isAdmin() || keepsRecordOwner();
+    }
+
+    match /licenses/{docId} {
+      allow read, delete: if isAdmin() || ownsExistingRecord();
+      allow create: if isAdmin() || ownsNewRecord();
+      allow update: if isAdmin() || keepsRecordOwner();
+    }
+
+    match /activity/{docId} {
+      allow read, delete: if isAdmin() || ownsExistingRecord();
+      allow create: if isAdmin() || ownsNewRecord();
+      allow update: if isAdmin() || keepsRecordOwner();
+    }
+
+    match /approvedUsers/{uid} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow write: if isAdmin();
+    }
+
+    match /pendingUsers/{uid} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /followups/{docId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if isAdmin() || (
+        isSignedIn()
+        && request.resource.data.flaggedBy == request.auth.uid
+      );
+    }
+  }
+}
