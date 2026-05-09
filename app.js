@@ -799,10 +799,12 @@ auth.onAuthStateChanged(async (user) => {
         appContainer.classList.remove('hidden');
         pendingApprovalContainer.classList.add('hidden');
         updateAdminUI();
-        Promise.all([autoFlagVehicleRenewals(), autoFlagLicenseExpirations()]).then(() => {
-            loadFollowUps();
-            loadPendingUsers();
-        });
+        if (isAdmin()) {
+            Promise.all([autoFlagVehicleRenewals(), autoFlagLicenseExpirations()]).then(() => {
+                loadFollowUps();
+                loadPendingUsers();
+            });
+        }
         loadAllData();
     } else {
         currentUser = null;
@@ -1312,15 +1314,20 @@ deleteModal.addEventListener('click', (e) => {
 // Load Data Functions
 async function loadAllData() {
     showLoading();
-    await Promise.all([
+    const loads = [
         loadData('permits'),
         loadData('vehicles'),
         loadData('bills'),
         loadData('deposits'),
         loadData('inspections'),
-        loadData('licenses'),
-        loadData('activity')
-    ]);
+        loadData('licenses')
+    ];
+
+    if (isAdmin()) {
+        loads.push(loadData('activity'));
+    }
+
+    await Promise.all(loads);
     hideLoading();
 }
 

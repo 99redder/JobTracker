@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.uid in ['H9Iu95HshTNjQ86JZlH36hHsBw02'];
+    }
+
+    function isApprovedUser() {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/approvedUsers/$(request.auth.uid));
+    }
+
+    function canReadAppFiles() {
+      return isAdmin() || isApprovedUser();
+    }
+
+    function isAllowedImageUpload() {
+      return request.resource != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    match /permits/{fileName} {
+      allow read: if canReadAppFiles();
+      allow create, update: if isAdmin() && isAllowedImageUpload();
+      allow delete: if isAdmin();
+    }
+
+    match /licenses/{fileName} {
+      allow read: if canReadAppFiles();
+      allow create, update: if isAdmin() && isAllowedImageUpload();
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -1,51 +1,79 @@
-const CACHE_NAME = 'jobtracker-v1';
-const CACHE_VERSION = Date.now();
+const CACHE_NAME = 'jobtracker-v2';
+const STATIC_ASSETS = new Set([
+  './',
+  './index.html',
+  './styles.css',
+  './app.js',
+  './manifest.json',
+  './firebase-config.local.js',
+  './favicon-16x16.png',
+  './favicon-32x32.png',
+  './favicon-48x48.png',
+  './apple-touch-icon.png',
+  './icon-192x192.png',
+  './icon-512x512.png'
+]);
 
-// Install event - cache essential files
+function isCacheableStaticRequest(request) {
+  if (request.method !== 'GET') return false;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return false;
+
+  const relativePath = `./${url.pathname.replace(self.location.pathname.replace(/sw\.js$/, ''), '')}`;
+  return STATIC_ASSETS.has(relativePath) || STATIC_ASSETS.has(`.${url.pathname}`);
+}
+
+// Install event - cache essential app shell files only. Never cache Firestore,
+// Firebase Storage, auth, reCAPTCHA, or other API responses that may contain PII.
 self.addEventListener('install', (event) => {
-    // Skip waiting to activate immediately
-    self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll([...STATIC_ASSETS]))
+      .then(() => self.skipWaiting())
+  );
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (cacheName !== CACHE_NAME) {
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
         })
-    );
-    // Take control of all pages immediately
-    self.clients.claim();
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
-// Fetch event - network first, fall back to cache
+// Fetch event - use cache only for the static app shell. Everything else is
+// network-only so customer information is not retained by the service worker.
 self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        fetch(event.request)
-            .then((response) => {
-                // Clone the response before caching
-                const responseClone = response.clone();
-                caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(event.request, responseClone);
-                });
-                return response;
-            })
-            .catch(() => {
-                // If network fails, try cache
-                return caches.match(event.request);
-            })
-    );
+  if (!isCacheableStaticRequest(event.request)) {
+    return;
+  }
+
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        if (response && response.ok) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
+  );
 });
 
 // Listen for messages from the app
 self.addEventListener('message', (event) => {
-    if (event.data === 'skipWaiting') {
-        self.skipWaiting();
-    }
+  if (event.data === 'skipWaiting') {
+    self.skipWaiting();
+  }
 });

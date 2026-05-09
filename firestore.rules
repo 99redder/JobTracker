@@ -24,31 +24,37 @@ service cloud.firestore {
     }
 
     match /permits/{docId} {
-      allow read, write: if canUseAppRecords();
+      allow read: if canUseAppRecords();
+      allow write: if isAdmin();
     }
 
     match /vehicles/{docId} {
-      allow read, write: if canUseAppRecords();
+      allow read: if canUseAppRecords();
+      allow write: if isAdmin();
     }
 
     match /bills/{docId} {
-      allow read, write: if canUseAppRecords();
+      allow read: if canUseAppRecords();
+      allow write: if isAdmin();
     }
 
     match /deposits/{docId} {
-      allow read, write: if canUseAppRecords();
+      allow read: if canUseAppRecords();
+      allow write: if isAdmin();
     }
 
     match /inspections/{docId} {
-      allow read, write: if canUseAppRecords();
+      allow read: if canUseAppRecords();
+      allow write: if isAdmin();
     }
 
     match /licenses/{docId} {
-      allow read, write: if canUseAppRecords();
+      allow read: if canUseAppRecords();
+      allow write: if isAdmin();
     }
 
     match /activity/{docId} {
-      allow read, write: if canUseAppRecords();
+      allow read, write: if isAdmin();
     }
 
     match /approvedUsers/{uid} {
@@ -60,15 +66,20 @@ service cloud.firestore {
       allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
       allow create: if isSignedIn()
         && request.auth.uid == uid
-        && request.resource.data.uid == request.auth.uid;
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'signupDate', 'status', 'authProvider'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.status == 'pending';
       allow update, delete: if isAdmin();
     }
 
     match /followups/{docId} {
       allow read, update, delete: if isAdmin();
       allow create: if isAdmin() || (
-        isSignedIn()
+        isApprovedUser()
+        && request.resource.data.keys().hasOnly(['category', 'itemId', 'itemTitle', 'flaggedBy', 'flaggedByEmail', 'flaggedAt'])
         && request.resource.data.flaggedBy == request.auth.uid
+        && request.resource.data.flaggedByEmail == request.auth.token.email
       );
     }
   }
