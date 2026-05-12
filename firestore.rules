@@ -7,7 +7,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.uid in ['H9Iu95HshTNjQ86JZlH36hHsBw02'];
+      return isSignedIn() && request.auth.token.admin == true;
     }
 
     function isApprovedUser() {

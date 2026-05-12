@@ -37,7 +37,8 @@ A mobile-first web application for tracking permits, vehicles, bills, deposits, 
 
 - **Admin**: Full CRUD access, can dismiss follow-ups, sees Activity tab, approves/rejects new users
 - **Regular users**: Read-only access, can flag items for admin follow-up
-- Admin UIDs are defined in the `ADMIN_UIDS` array in app.js (line ~40)
+- Admin access is controlled by Firebase Custom Claims (`request.auth.token.admin == true`)
+- Bootstrap the first admin with `scripts/bootstrap-admin.js`; admins can later call `setAdminClaim` from trusted admin sessions
 - Admin bypasses the approval system entirely
 
 ## User Approval Flow
@@ -54,11 +55,12 @@ Google sign-in users who haven't signed up before are auto-added to `pendingUser
 
 **UX update (2026-02-21):** Approval/rejection confirmations are now branded in-app modals (reusing `#delete-modal`) via `showConfirmDialog(...)` in `app.js` instead of browser-native `confirm()`/`alert()` dialogs.
 
-**Migration**: When first deploying the approval system, run `migrateExistingUsers()` from the browser console as an admin to auto-approve pre-existing users (app.js line ~2390).
+**Migration**: When first deploying the approval system, bootstrap the first admin claim with `scripts/bootstrap-admin.js`, then run `migrateExistingUsers()` from the browser console as an admin to auto-approve the current admin user.
 
 ## Authentication
 
 - Firebase Email/Password auth + Google Sign-In (popup)
+- Signup passwords must be 10+ characters with uppercase, lowercase, digit, and special character; login remains compatible with old passwords.
 - reCAPTCHA v2 (checkbox) on login and signup forms
 - Frontend constants:
   - `RECAPTCHA_SITE_KEY`
@@ -138,8 +140,9 @@ The file is organized with `// ====` section comments at major boundaries:
 |---|---|---|
 | Firebase Config + Init | 1 | `firebaseConfig`, `auth`, `db`, `storage` |
 | DOM Elements | 20 | All `getElementById` references |
-| Constants & State | 35 | `currentUser`, `ADMIN_UIDS`, `isAdmin()` |
-| User Approval System | 50 | `checkUserApproval`, `loadPendingUsers`, `approvePendingUser`, `rejectPendingUser` |
+| Constants & State | 35 | `currentUser`, `currentUserClaims`, `isAdmin()` |
+| Password Policy | 50 | `validatePassword`, password checklist/strength indicator |
+| User Approval System | 100 | `checkUserApproval`, `loadPendingUsers`, `approvePendingUser`, `rejectPendingUser` |
 | Follow-Up System | 85 | `flagForFollowUp`, `dismissFollowUp`, `loadFollowUps` |
 | Form Configurations | 300 | `formConfigs` object — field definitions for all 8 categories |
 | UI Utilities & Auth Handlers | 390 | `showLoading`, `showMessage`, login/signup/reset/Google handlers, `openLegalModal`, `showUnpaidSummary` |

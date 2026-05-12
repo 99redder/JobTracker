@@ -15,6 +15,48 @@ admin.initializeApp();
 
 const bucket = () => admin.storage().bucket();
 
+function isBootstrapAdmin(context, targetUid) {
+  const bootstrapUid = (process.env.BOOTSTRAP_ADMIN_UID || '').trim();
+  return Boolean(bootstrapUid && context.auth?.uid === bootstrapUid && targetUid === bootstrapUid);
+}
+
+exports.setAdminClaim = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const uid = typeof data?.uid === 'string' ? data.uid.trim() : '';
+  const isAdmin = data?.isAdmin;
+
+  if (!uid || typeof isAdmin !== 'boolean') {
+    throw new functions.https.HttpsError('invalid-argument', 'Expected payload: { uid: string, isAdmin: boolean }.');
+  }
+
+  const callerIsAdmin = context.auth.token?.admin === true;
+  if (!callerIsAdmin && !isBootstrapAdmin(context, uid)) {
+    throw new functions.https.HttpsError('permission-denied', 'Only admins can change admin claims.');
+  }
+
+  try {
+    const user = await admin.auth().getUser(uid);
+    const existingClaims = user.customClaims || {};
+    const nextClaims = { ...existingClaims, admin: isAdmin };
+
+    await admin.auth().setCustomUserClaims(uid, nextClaims);
+    console.log('Updated admin claim', { targetUid: uid, isAdmin, callerUid: context.auth.uid });
+
+    return {
+      ok: true,
+      message: `Admin claim ${isAdmin ? 'granted' : 'revoked'} for ${uid}. Ask the user to sign out/in or refresh their ID token.`,
+      uid,
+      isAdmin
+    };
+  } catch (err) {
+    console.error('setAdminClaim failed', { targetUid: uid, callerUid: context.auth.uid, error: err?.message || err });
+    throw new functions.https.HttpsError('internal', 'Failed to update admin claim.');
+  }
+});
+
 function tryGetStoragePathFromUrl(url) {
   // Best-effort: parse a Firebase Storage download URL and extract the object path.
   // Example:

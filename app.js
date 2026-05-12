@@ -10,6 +10,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
+const cloudFunctions = firebase.functions();
 
 // ============================================
 // DOM ELEMENTS
@@ -36,16 +37,90 @@ const loading = document.getElementById('loading');
 // CONSTANTS & STATE
 // ============================================
 let currentUser = null;
+let currentUserClaims = {};
 let confirmCallback = null;
 
-// Admin user IDs - add your admin UIDs here
-const ADMIN_UIDS = [
-    'H9Iu95HshTNjQ86JZlH36hHsBw02'  // Replace with your actual UID from Firebase Console
+// Check if current user has the Firebase Custom Claim for admin access.
+function isAdmin() {
+    return currentUser && currentUserClaims.admin === true;
+}
+
+async function refreshCurrentUserClaims(forceRefresh = false) {
+    if (!auth.currentUser) {
+        currentUserClaims = {};
+        return currentUserClaims;
+    }
+
+    const tokenResult = await auth.currentUser.getIdTokenResult(forceRefresh);
+    currentUserClaims = tokenResult.claims || {};
+    return currentUserClaims;
+}
+
+async function setAdminClaimForUser(uid, isAdminUser) {
+    if (!isAdmin()) {
+        throw new Error('Only admins can update admin claims.');
+    }
+
+    const setAdminClaim = cloudFunctions.httpsCallable('setAdminClaim');
+    const result = await setAdminClaim({ uid, isAdmin: isAdminUser });
+
+    if (auth.currentUser) {
+        await auth.currentUser.getIdToken(true);
+        await refreshCurrentUserClaims(false);
+        updateAdminUI();
+    }
+
+    return result.data;
+}
+
+// Browser-console helper for admin maintenance. This does not expose any admin UID in client code.
+window.setAdminClaimForUser = setAdminClaimForUser;
+
+// ============================================
+// PASSWORD POLICY
+// ============================================
+const PASSWORD_RULES = [
+    { id: 'length', label: 'Minimum 10 characters', test: password => password.length >= 10 },
+    { id: 'uppercase', label: 'At least one uppercase letter', test: password => /[A-Z]/.test(password) },
+    { id: 'lowercase', label: 'At least one lowercase letter', test: password => /[a-z]/.test(password) },
+    { id: 'digit', label: 'At least one digit', test: password => /[0-9]/.test(password) },
+    { id: 'special', label: 'At least one special character', test: password => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) }
 ];
 
-// Check if current user is admin
-function isAdmin() {
-    return currentUser && ADMIN_UIDS.includes(currentUser.uid);
+function validatePassword(password) {
+    return PASSWORD_RULES
+        .filter(rule => !rule.test(password || ''))
+        .map(rule => rule.label);
+}
+
+function renderPasswordChecklist(password, forceShow = false) {
+    const checklist = document.getElementById('password-checklist');
+    const strengthLabel = document.getElementById('password-strength');
+    if (!checklist || !strengthLabel) return;
+
+    const value = password || '';
+    const passedRules = PASSWORD_RULES.filter(rule => rule.test(value)).length;
+    const shouldShow = forceShow || value.length > 0;
+
+    checklist.innerHTML = shouldShow ? PASSWORD_RULES.map(rule => {
+        const passed = rule.test(value);
+        const color = passed ? '#16a34a' : '#dc2626';
+        const icon = passed ? '✓' : '✕';
+        return `<div style="color: ${color};"><span aria-hidden="true">${icon}</span> ${rule.label}</div>`;
+    }).join('') : '';
+
+    let strength = 'Weak';
+    let color = '#dc2626';
+    if (passedRules === PASSWORD_RULES.length) {
+        strength = 'Strong';
+        color = '#16a34a';
+    } else if (passedRules >= 3) {
+        strength = 'Fair';
+        color = '#f97316';
+    }
+
+    strengthLabel.textContent = `Password strength: ${strength}`;
+    strengthLabel.style.color = color;
 }
 
 // ============================================
@@ -55,7 +130,7 @@ async function checkUserApproval(user) {
     if (!user) return { approved: false, pending: false };
 
     // Admins always bypass approval
-    if (ADMIN_UIDS.includes(user.uid)) {
+    if (isAdmin()) {
         return { approved: true, pending: false, isAdmin: true };
     }
 
@@ -657,6 +732,14 @@ if (googleLoginBtn) {
     });
 }
 
+const signupPasswordInput = document.getElementById('signup-password');
+if (signupPasswordInput) {
+    signupPasswordInput.addEventListener('input', () => {
+        renderPasswordChecklist(signupPasswordInput.value);
+    });
+    renderPasswordChecklist(signupPasswordInput.value);
+}
+
 // Sign Up
 signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -664,6 +747,13 @@ signupForm.addEventListener('submit', async (e) => {
     const email = document.getElementById('signup-email').value;
     const password = document.getElementById('signup-password').value;
     const confirm = document.getElementById('signup-confirm').value;
+
+    const unmetPasswordRules = validatePassword(password);
+    if (unmetPasswordRules.length > 0) {
+        renderPasswordChecklist(password, true);
+        showMessage('Password does not meet the security requirements.', true);
+        return;
+    }
 
     if (password !== confirm) {
         showMessage('Passwords do not match', true);
@@ -690,24 +780,18 @@ signupForm.addEventListener('submit', async (e) => {
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
 
-        // Check if user is an admin (admins bypass approval)
-        if (!ADMIN_UIDS.includes(user.uid)) {
-            // Add to pendingUsers collection
-            await db.collection('pendingUsers').doc(user.uid).set({
-                uid: user.uid,
-                email: user.email,
-                signupDate: firebase.firestore.FieldValue.serverTimestamp(),
-                status: 'pending'
-            });
+        // Newly created users do not receive admin access from client-side code.
+        await db.collection('pendingUsers').doc(user.uid).set({
+            uid: user.uid,
+            email: user.email,
+            signupDate: firebase.firestore.FieldValue.serverTimestamp(),
+            status: 'pending'
+        });
 
-            // Sign out immediately so onAuthStateChanged doesn't grant access
-            await auth.signOut();
+        // Sign out immediately so onAuthStateChanged doesn't grant access
+        await auth.signOut();
 
-            showMessage('Account created successfully! Your account is pending admin approval. You will be notified once approved.');
-        } else {
-            // Admin users bypass approval
-            showMessage('Account created successfully!');
-        }
+        showMessage('Account created successfully! Your account is pending admin approval. You will be notified once approved.');
         grecaptcha.reset(signupRecaptchaId);
     } catch (error) {
         showMessage(error.message, true);
@@ -757,6 +841,7 @@ document.getElementById('pending-logout-btn').addEventListener('click', async ()
 auth.onAuthStateChanged(async (user) => {
     if (user) {
         currentUser = user;
+        await refreshCurrentUserClaims(true);
 
         // Check approval status
         const approvalStatus = await checkUserApproval(user);
@@ -808,6 +893,7 @@ auth.onAuthStateChanged(async (user) => {
         loadAllData();
     } else {
         currentUser = null;
+        currentUserClaims = {};
         authContainer.classList.remove('hidden');
         appContainer.classList.add('hidden');
         pendingApprovalContainer.classList.add('hidden');
@@ -2579,19 +2665,11 @@ async function migrateExistingUsers() {
 
         console.log(`Found ${existingUserEmails.size} existing user emails from activity log`);
 
-        // For this simple migration, we'll approve the current admin user
-        // and any users we find evidence of in the database
-        const usersToApprove = [];
-
-        // Always approve admins
-        for (const adminUid of ADMIN_UIDS) {
-            if (currentUser && currentUser.uid === adminUid) {
-                usersToApprove.push({
-                    uid: adminUid,
-                    email: currentUser.email
-                });
-            }
-        }
+        // For this simple migration, approve the current custom-claim admin user.
+        const usersToApprove = currentUser ? [{
+            uid: currentUser.uid,
+            email: currentUser.email
+        }] : [];
 
         // Check if there are any users already in approvedUsers or pendingUsers
         const approvedSnapshot = await db.collection('approvedUsers').get();
