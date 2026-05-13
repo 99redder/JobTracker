@@ -7,3 +7,5 @@ firebase-config.local.js
 .env.*.local
 service-account*.json
 *.service-account.json
+.DS_Store
+**/.DS_Store
