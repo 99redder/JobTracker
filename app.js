@@ -316,7 +316,7 @@ async function loadPendingUsers() {
         }
     } catch (error) {
         console.error('Error loading pending users:', error);
-        pendingList.innerHTML = `<p class="error-text">Error loading pending users: ${error.message}</p>`;
+        pendingList.innerHTML = `<p class="error-text">Error loading pending users: ${escapeHtml(error.message)}</p>`;
     }
 }
 
@@ -1545,7 +1545,7 @@ async function loadData(category) {
 
         renderList(category, items);
     } catch (error) {
-        listElement.innerHTML = `<p class="error-text">Error loading data: ${error.message}</p>`;
+        listElement.innerHTML = `<p class="error-text">Error loading data: ${escapeHtml(error.message)}</p>`;
     }
 }
 

@@ -26,16 +26,25 @@ jobs:
 
       - name: Generate runtime Firebase config
         run: |
-          cat > firebase-config.local.js <<'EOF'
-          window.JOBTRACKER_FIREBASE_CONFIG = {
-            apiKey: "${{ secrets.JT_FIREBASE_API_KEY }}",
-            authDomain: "${{ secrets.JT_FIREBASE_AUTH_DOMAIN }}",
-            projectId: "${{ secrets.JT_FIREBASE_PROJECT_ID }}",
-            storageBucket: "${{ secrets.JT_FIREBASE_STORAGE_BUCKET }}",
-            messagingSenderId: "${{ secrets.JT_FIREBASE_MESSAGING_SENDER_ID }}",
-            appId: "${{ secrets.JT_FIREBASE_APP_ID }}"
-          };
-          EOF
+          python3 -c "
+          import json, os
+          cfg = {
+            'apiKey': os.environ['JT_FIREBASE_API_KEY'],
+            'authDomain': os.environ['JT_FIREBASE_AUTH_DOMAIN'],
+            'projectId': os.environ['JT_FIREBASE_PROJECT_ID'],
+            'storageBucket': os.environ['JT_FIREBASE_STORAGE_BUCKET'],
+            'messagingSenderId': os.environ['JT_FIREBASE_MESSAGING_SENDER_ID'],
+            'appId': os.environ['JT_FIREBASE_APP_ID'],
+          }
+          print('window.JOBTRACKER_FIREBASE_CONFIG = ' + json.dumps(cfg) + ';')
+          " > firebase-config.local.js
+        env:
+          JT_FIREBASE_API_KEY: ${{ secrets.JT_FIREBASE_API_KEY }}
+          JT_FIREBASE_AUTH_DOMAIN: ${{ secrets.JT_FIREBASE_AUTH_DOMAIN }}
+          JT_FIREBASE_PROJECT_ID: ${{ secrets.JT_FIREBASE_PROJECT_ID }}
+          JT_FIREBASE_STORAGE_BUCKET: ${{ secrets.JT_FIREBASE_STORAGE_BUCKET }}
+          JT_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.JT_FIREBASE_MESSAGING_SENDER_ID }}
+          JT_FIREBASE_APP_ID: ${{ secrets.JT_FIREBASE_APP_ID }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
