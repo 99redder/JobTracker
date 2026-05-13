@@ -226,6 +226,25 @@ body {
     min-height: 80px;
 }
 
+/* Yellow calendar picker icon on date/month inputs (WebKit/Chromium).
+   Filter converts the default near-black SVG to #facc15. */
+.form-group input[type="date"],
+.form-group input[type="month"] {
+    color-scheme: dark;
+}
+
+.form-group input[type="date"]::-webkit-calendar-picker-indicator,
+.form-group input[type="month"]::-webkit-calendar-picker-indicator {
+    filter: brightness(0) saturate(100%) invert(82%) sepia(40%) saturate(2010%) hue-rotate(359deg) brightness(101%) contrast(96%);
+    cursor: pointer;
+    opacity: 1;
+}
+
+.form-group input[type="date"]::-webkit-calendar-picker-indicator:hover,
+.form-group input[type="month"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 0.85;
+}
+
 .auth-form .btn {
     width: 100%;
     margin-top: 0.5rem;
