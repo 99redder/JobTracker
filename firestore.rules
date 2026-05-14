@@ -78,6 +78,7 @@ service cloud.firestore {
       allow create: if isAdmin() || (
         isApprovedUser()
         && request.resource.data.keys().hasOnly(['category', 'itemId', 'itemTitle', 'flaggedBy', 'flaggedByEmail', 'flaggedAt'])
+        && request.resource.data.category in ['permits', 'vehicles', 'bills', 'deposits', 'inspections', 'licenses']
         && request.resource.data.flaggedBy == request.auth.uid
         && request.resource.data.flaggedByEmail == request.auth.token.email
       );

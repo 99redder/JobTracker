@@ -12,6 +12,25 @@ const db = firebase.firestore();
 const storage = firebase.storage();
 const cloudFunctions = firebase.functions();
 
+function escapeHtml(str) {
+    if (typeof str !== 'string') return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+}
+
+function isSafeStorageUrl(url) {
+    try {
+        const u = new URL(url);
+        return u.protocol === 'https:' && u.hostname === 'firebasestorage.googleapis.com';
+    } catch {
+        return false;
+    }
+}
+
 // ============================================
 // DOM ELEMENTS
 // ============================================
@@ -233,7 +252,7 @@ async function loadFollowUps() {
                     <span class="followup-meta">Flagged by ${escapeHtml(followup.flaggedByEmail)} on ${flaggedDate}</span>
                 </div>
                 <div class="followup-actions">
-                    <button class="btn btn-small btn-view" data-category="${followup.category}" data-id="${followup.itemId}">View</button>
+                    <button class="btn btn-small btn-view" data-category="${escapeHtml(followup.category)}" data-id="${escapeHtml(followup.itemId)}">View</button>
                     ${dismissButton}
                 </div>
             `;
@@ -557,7 +576,10 @@ document.addEventListener('keydown', (e) => {
 });
 
 // reCAPTCHA v2 site key
-const RECAPTCHA_SITE_KEY = '6LcBrU4sAAAAAPvJzPw5NoZTSoO04v2GGI2xBF6M';
+const RECAPTCHA_SITE_KEY = window.JOBTRACKER_RECAPTCHA_SITE_KEY || '';
+if (!RECAPTCHA_SITE_KEY) {
+    console.error('Missing RECAPTCHA_SITE_KEY — add it to firebase-config.local.js');
+}
 const RECAPTCHA_VERIFY_URL = 'https://us-central1-jobtracker-582b9.cloudfunctions.net/verifyRecaptchaToken';
 
 // Legal content (shown on login screen)
@@ -1655,7 +1677,7 @@ function createPermitCard(item, category) {
         </div>
     `;
 
-    const imageHtml = item.image ? `
+    const imageHtml = item.image && isSafeStorageUrl(item.image) ? `
         <div class="permit-image">
             <a href="${item.image}" target="_blank" rel="noopener">
                 <img src="${item.image}" alt="Permit photo" class="permit-photo">
@@ -2390,7 +2412,7 @@ function createLicenseCard(item, category) {
         ? new Date(item.expirationDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         : 'No Date';
 
-    const imageHtml = item.image ? `
+    const imageHtml = item.image && isSafeStorageUrl(item.image) ? `
         <div class="license-image">
             <a href="${item.image}" target="_blank" rel="noopener">
                 <img src="${item.image}" alt="License photo" class="permit-photo">
@@ -2573,13 +2595,6 @@ async function autoFlagLicenseExpirations() {
 // ============================================
 // UTILITY FUNCTIONS
 // ============================================
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 // Helper function to format Firestore timestamp
 function formatDate(timestamp) {
     if (!timestamp) return 'Never';

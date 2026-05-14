@@ -8,3 +8,5 @@ window.JOBTRACKER_FIREBASE_CONFIG = {
   messagingSenderId: "",
   appId: ""
 };
+
+window.JOBTRACKER_RECAPTCHA_SITE_KEY = "";
