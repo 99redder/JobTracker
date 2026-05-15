@@ -583,7 +583,8 @@ if (!RECAPTCHA_SITE_KEY) {
 const RECAPTCHA_VERIFY_URL = 'https://us-central1-jobtracker-582b9.cloudfunctions.net/verifyRecaptchaToken';
 
 // Legal content (shown on login screen)
-const LEGAL_CONTACT_EMAIL = 'redonx99@gmail.com';
+// TODO: Update before deploy to match the current support/legal contact email. If a personal email was previously committed, run git filter-repo or contact GitHub Support to scrub it from public git history.
+const LEGAL_CONTACT_EMAIL = 'support@jobtracker.app';
 
 function openLegalModal(kind) {
     if (!legalModal || !legalTitle || !legalBody) return;
@@ -1010,14 +1011,30 @@ function openModal(category, editData = null) {
             if (field.accept) input.accept = field.accept;
             // Show existing image if editing
             if (editData && editData[field.name]) {
-                const preview = document.createElement('div');
-                preview.className = 'image-preview';
-                preview.innerHTML = `
-                    <img src="${editData[field.name]}" alt="Current photo" style="max-width: 100%; max-height: 150px; margin-bottom: 0.5rem; border-radius: 4px;">
-                    <p style="font-size: 0.75rem; color: var(--text-muted);">Select a new file to replace</p>
-                `;
                 div.appendChild(label);
-                div.appendChild(preview);
+
+                if (isSafeStorageUrl(editData[field.name])) {
+                    const preview = document.createElement('div');
+                    preview.className = 'image-preview';
+
+                    const img = document.createElement('img');
+                    img.src = editData[field.name];
+                    img.alt = 'Current photo';
+                    img.style.maxWidth = '100%';
+                    img.style.maxHeight = '150px';
+                    img.style.marginBottom = '0.5rem';
+                    img.style.borderRadius = '4px';
+
+                    const replaceText = document.createElement('p');
+                    replaceText.textContent = 'Select a new file to replace';
+                    replaceText.style.fontSize = '0.75rem';
+                    replaceText.style.color = 'var(--text-muted)';
+
+                    preview.appendChild(img);
+                    preview.appendChild(replaceText);
+                    div.appendChild(preview);
+                }
+
                 div.appendChild(input);
                 input.id = `field-${field.name}`;
                 input.name = field.name;
