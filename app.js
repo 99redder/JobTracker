@@ -58,6 +58,18 @@ const loading = document.getElementById('loading');
 let currentUser = null;
 let currentUserClaims = {};
 let confirmCallback = null;
+const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
+const IMAGE_UPLOAD_PATHS = new Set(['permits', 'licenses']);
+const IMAGE_CONTENT_TYPES_BY_EXTENSION = {
+    avif: 'image/avif',
+    gif: 'image/gif',
+    heic: 'image/heic',
+    heif: 'image/heif',
+    jpeg: 'image/jpeg',
+    jpg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp'
+};
 
 // Check if current user has the Firebase Custom Claim for admin access.
 function isAdmin() {
@@ -73,6 +85,49 @@ async function refreshCurrentUserClaims(forceRefresh = false) {
     const tokenResult = await auth.currentUser.getIdTokenResult(forceRefresh);
     currentUserClaims = tokenResult.claims || {};
     return currentUserClaims;
+}
+
+function sanitizeStorageFileName(fileName) {
+    const baseName = String(fileName || 'upload')
+        .split(/[\\/]/)
+        .pop()
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/[^A-Za-z0-9._-]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^[._-]+/, '');
+
+    return baseName || 'upload';
+}
+
+function inferImageContentType(file) {
+    if (file.type && /^image\//.test(file.type)) {
+        return file.type;
+    }
+
+    const extension = String(file.name || '').split('.').pop().toLowerCase();
+    return IMAGE_CONTENT_TYPES_BY_EXTENSION[extension] || '';
+}
+
+function buildImageStoragePath(category, file) {
+    if (!IMAGE_UPLOAD_PATHS.has(category)) {
+        throw new Error(`Photo uploads are not supported for ${category}.`);
+    }
+
+    return `${category}/${Date.now()}_${sanitizeStorageFileName(file.name)}`;
+}
+
+function validateImageUpload(file) {
+    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+        throw new Error('Photo must be smaller than 10 MB.');
+    }
+
+    const contentType = inferImageContentType(file);
+    if (!contentType) {
+        throw new Error('Photo must be a supported image file.');
+    }
+
+    return contentType;
 }
 
 async function setAdminClaimForUser(uid, isAdminUser) {
@@ -1343,10 +1398,10 @@ document.getElementById('modal-form').addEventListener('submit', async (e) => {
     try {
         // Upload file if present
         if (fileToUpload && fileFieldName) {
-            const timestamp = Date.now();
-            const fileName = `${category}/${timestamp}_${fileToUpload.name}`;
+            const contentType = validateImageUpload(fileToUpload);
+            const fileName = buildImageStoragePath(category, fileToUpload);
             const storageRef = storage.ref(fileName);
-            await storageRef.put(fileToUpload);
+            await storageRef.put(fileToUpload, { contentType });
             const downloadURL = await storageRef.getDownloadURL();
             data[fileFieldName] = downloadURL;
             // Store storage path for reliable server-side deletion on record delete

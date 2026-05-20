@@ -29,13 +29,13 @@ service firebase.storage {
       allow read, write: if false;
     }
 
-    match /permits/{fileName} {
+    match /permits/{filePath=**} {
       allow read: if canReadAppFiles();
       allow create, update: if isAdmin() && isAllowedImageUpload();
       allow delete: if isAdmin();
     }
 
-    match /licenses/{fileName} {
+    match /licenses/{filePath=**} {
       allow read: if canReadAppFiles();
       allow create, update: if isAdmin() && isAllowedImageUpload();
       allow delete: if isAdmin();
