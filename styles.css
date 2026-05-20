@@ -1207,6 +1207,20 @@ body {
     opacity: 0.9;
 }
 
+.permit-pdf-link {
+    display: inline-block;
+    padding: 0.5rem 0.75rem;
+    background: var(--primary-color);
+    color: #000;
+    border-radius: 4px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.permit-pdf-link:hover {
+    opacity: 0.9;
+}
+
 .card-details strong {
     color: var(--text-color);
 }

@@ -19,10 +19,13 @@ service firebase.storage {
       return isAdmin() || isApprovedUser();
     }
 
-    function isAllowedImageUpload() {
+    function isAllowedUpload() {
       return request.resource != null
         && request.resource.size < 10 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && (
+          request.resource.contentType.matches('image/.*')
+          || request.resource.contentType == 'application/pdf'
+        );
     }
 
     match /{allPaths=**} {
@@ -31,13 +34,13 @@ service firebase.storage {
 
     match /permits/{filePath=**} {
       allow read: if canReadAppFiles();
-      allow create, update: if isAdmin() && isAllowedImageUpload();
+      allow create, update: if isAdmin() && isAllowedUpload();
       allow delete: if isAdmin();
     }
 
     match /licenses/{filePath=**} {
       allow read: if canReadAppFiles();
-      allow create, update: if isAdmin() && isAllowedImageUpload();
+      allow create, update: if isAdmin() && isAllowedUpload();
       allow delete: if isAdmin();
     }
   }

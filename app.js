@@ -58,15 +58,16 @@ const loading = document.getElementById('loading');
 let currentUser = null;
 let currentUserClaims = {};
 let confirmCallback = null;
-const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
-const IMAGE_UPLOAD_PATHS = new Set(['permits', 'licenses']);
-const IMAGE_CONTENT_TYPES_BY_EXTENSION = {
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const UPLOAD_PATHS = new Set(['permits', 'licenses']);
+const UPLOAD_CONTENT_TYPES_BY_EXTENSION = {
     avif: 'image/avif',
     gif: 'image/gif',
     heic: 'image/heic',
     heif: 'image/heif',
     jpeg: 'image/jpeg',
     jpg: 'image/jpeg',
+    pdf: 'application/pdf',
     png: 'image/png',
     webp: 'image/webp'
 };
@@ -100,34 +101,39 @@ function sanitizeStorageFileName(fileName) {
     return baseName || 'upload';
 }
 
-function inferImageContentType(file) {
-    if (file.type && /^image\//.test(file.type)) {
+function inferUploadContentType(file) {
+    if (file.type && (/^image\//.test(file.type) || file.type === 'application/pdf')) {
         return file.type;
     }
 
     const extension = String(file.name || '').split('.').pop().toLowerCase();
-    return IMAGE_CONTENT_TYPES_BY_EXTENSION[extension] || '';
+    return UPLOAD_CONTENT_TYPES_BY_EXTENSION[extension] || '';
 }
 
-function buildImageStoragePath(category, file) {
-    if (!IMAGE_UPLOAD_PATHS.has(category)) {
-        throw new Error(`Photo uploads are not supported for ${category}.`);
+function buildUploadStoragePath(category, file) {
+    if (!UPLOAD_PATHS.has(category)) {
+        throw new Error(`File uploads are not supported for ${category}.`);
     }
 
     return `${category}/${Date.now()}_${sanitizeStorageFileName(file.name)}`;
 }
 
-function validateImageUpload(file) {
-    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
-        throw new Error('Photo must be smaller than 10 MB.');
+function validateUpload(file) {
+    if (file.size > MAX_UPLOAD_BYTES) {
+        throw new Error('File must be smaller than 10 MB.');
     }
 
-    const contentType = inferImageContentType(file);
+    const contentType = inferUploadContentType(file);
     if (!contentType) {
-        throw new Error('Photo must be a supported image file.');
+        throw new Error('File must be an image or PDF.');
     }
 
     return contentType;
+}
+
+function isPdfAttachment(item) {
+    const source = (item && (item.imagePath || item.image)) || '';
+    return /\.pdf(?:[?#]|$)/i.test(source);
 }
 
 async function setAdminClaimForUser(uid, isAdminUser) {
@@ -477,7 +483,7 @@ const formConfigs = {
             { name: 'address', label: 'Address', type: 'text', required: true },
             { name: 'status', label: 'Status', type: 'select', options: ['Pending', 'Approved', 'In Progress', 'Completed', 'Denied'], required: true },
             { name: 'dateSubmitted', label: 'Date Submitted', type: 'date', required: true },
-            { name: 'image', label: 'Photo', type: 'file', accept: 'image/*', required: false },
+            { name: 'image', label: 'Photo or PDF', type: 'file', accept: 'image/*,application/pdf', required: false },
             { name: 'notes', label: 'Notes', type: 'textarea', required: false }
         ]
     },
@@ -541,7 +547,7 @@ const formConfigs = {
             { name: 'jurisdiction', label: 'Jurisdiction', type: 'text', required: true },
             { name: 'licenseNumber', label: 'License Number', type: 'text', required: true },
             { name: 'expirationDate', label: 'Expiration Date', type: 'date', required: true },
-            { name: 'image', label: 'Photo', type: 'file', accept: 'image/*', required: false },
+            { name: 'image', label: 'Photo or PDF', type: 'file', accept: 'image/*,application/pdf', required: false },
             { name: 'notes', label: 'Notes', type: 'textarea', required: false }
         ]
     }
@@ -1072,20 +1078,31 @@ function openModal(category, editData = null) {
                     const preview = document.createElement('div');
                     preview.className = 'image-preview';
 
-                    const img = document.createElement('img');
-                    img.src = editData[field.name];
-                    img.alt = 'Current photo';
-                    img.style.maxWidth = '100%';
-                    img.style.maxHeight = '150px';
-                    img.style.marginBottom = '0.5rem';
-                    img.style.borderRadius = '4px';
+                    if (isPdfAttachment(editData)) {
+                        const link = document.createElement('a');
+                        link.href = editData[field.name];
+                        link.target = '_blank';
+                        link.rel = 'noopener';
+                        link.textContent = 'View current PDF';
+                        link.style.display = 'inline-block';
+                        link.style.marginBottom = '0.5rem';
+                        preview.appendChild(link);
+                    } else {
+                        const img = document.createElement('img');
+                        img.src = editData[field.name];
+                        img.alt = 'Current photo';
+                        img.style.maxWidth = '100%';
+                        img.style.maxHeight = '150px';
+                        img.style.marginBottom = '0.5rem';
+                        img.style.borderRadius = '4px';
+                        preview.appendChild(img);
+                    }
 
                     const replaceText = document.createElement('p');
                     replaceText.textContent = 'Select a new file to replace';
                     replaceText.style.fontSize = '0.75rem';
                     replaceText.style.color = 'var(--text-muted)';
 
-                    preview.appendChild(img);
                     preview.appendChild(replaceText);
                     div.appendChild(preview);
                 }
@@ -1398,8 +1415,8 @@ document.getElementById('modal-form').addEventListener('submit', async (e) => {
     try {
         // Upload file if present
         if (fileToUpload && fileFieldName) {
-            const contentType = validateImageUpload(fileToUpload);
-            const fileName = buildImageStoragePath(category, fileToUpload);
+            const contentType = validateUpload(fileToUpload);
+            const fileName = buildUploadStoragePath(category, fileToUpload);
             const storageRef = storage.ref(fileName);
             await storageRef.put(fileToUpload, { contentType });
             const downloadURL = await storageRef.getDownloadURL();
@@ -1749,13 +1766,21 @@ function createPermitCard(item, category) {
         </div>
     `;
 
-    const imageHtml = item.image && isSafeStorageUrl(item.image) ? `
+    const imageHtml = item.image && isSafeStorageUrl(item.image)
+        ? (isPdfAttachment(item)
+            ? `
+        <div class="permit-image">
+            <a href="${item.image}" target="_blank" rel="noopener" class="permit-pdf-link">View PDF</a>
+        </div>
+    `
+            : `
         <div class="permit-image">
             <a href="${item.image}" target="_blank" rel="noopener">
                 <img src="${item.image}" alt="Permit photo" class="permit-photo">
             </a>
         </div>
-    ` : '';
+    `)
+        : '';
 
     // Determine location display based on permit type
     const isCityPermit = item.permitType === 'City Permit';
@@ -2484,13 +2509,21 @@ function createLicenseCard(item, category) {
         ? new Date(item.expirationDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         : 'No Date';
 
-    const imageHtml = item.image && isSafeStorageUrl(item.image) ? `
+    const imageHtml = item.image && isSafeStorageUrl(item.image)
+        ? (isPdfAttachment(item)
+            ? `
+        <div class="license-image">
+            <a href="${item.image}" target="_blank" rel="noopener" class="permit-pdf-link">View PDF</a>
+        </div>
+    `
+            : `
         <div class="license-image">
             <a href="${item.image}" target="_blank" rel="noopener">
                 <img src="${item.image}" alt="License photo" class="permit-photo">
             </a>
         </div>
-    ` : '';
+    `)
+        : '';
 
     let cardContent = `
         <div class="card-header">
