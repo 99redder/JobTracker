@@ -1,24 +1,9 @@
 const functions = require('firebase-functions');
-const { defineString } = require('firebase-functions/params');
 const admin = require('firebase-admin');
-
-const RECAPTCHA_SECRET = defineString('RECAPTCHA_SECRET');
-
-const ALLOWED_ORIGINS = [
-  'https://99redder.github.io',
-  'https://jobtracker-582b9.web.app',
-  'https://jobtracker-582b9.firebaseapp.com',
-  'http://localhost:5000'
-];
 
 admin.initializeApp();
 
 const bucket = () => admin.storage().bucket();
-
-function isBootstrapAdmin(context, targetUid) {
-  const bootstrapUid = (process.env.BOOTSTRAP_ADMIN_UID || '').trim();
-  return Boolean(bootstrapUid && context.auth?.uid === bootstrapUid && targetUid === bootstrapUid);
-}
 
 exports.setAdminClaim = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
@@ -33,7 +18,7 @@ exports.setAdminClaim = functions.https.onCall(async (data, context) => {
   }
 
   const callerIsAdmin = context.auth.token?.admin === true;
-  if (!callerIsAdmin && !isBootstrapAdmin(context, uid)) {
+  if (!callerIsAdmin) {
     throw new functions.https.HttpsError('permission-denied', 'Only admins can change admin claims.');
   }
 
@@ -108,62 +93,3 @@ function makeOnDeleteHandler(collectionName, imageFieldName) {
 
 exports.onPermitDeleted = makeOnDeleteHandler('permits', 'image');
 exports.onLicenseDeleted = makeOnDeleteHandler('licenses', 'image');
-
-exports.verifyRecaptchaToken = functions.https.onRequest(async (req, res) => {
-  const origin = req.headers.origin;
-  const isAllowedOrigin = ALLOWED_ORIGINS.includes(origin);
-
-  if (isAllowedOrigin) {
-    res.set('Access-Control-Allow-Origin', origin);
-    res.set('Vary', 'Origin');
-  }
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(isAllowedOrigin ? 204 : 403).send('');
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false, error: 'Method not allowed' });
-  }
-
-  if (!isAllowedOrigin) {
-    return res.status(403).json({ ok: false, error: 'Origin not allowed' });
-  }
-
-  const secret = RECAPTCHA_SECRET.value() || process.env.RECAPTCHA_SECRET || '';
-  if (!secret) {
-    return res.status(500).json({ ok: false, error: 'reCAPTCHA secret is not configured on backend' });
-  }
-
-  const token = (req.body?.token || '').toString().trim();
-  if (!token) {
-    return res.status(400).json({ ok: false, error: 'Missing token' });
-  }
-
-  try {
-    const params = new URLSearchParams();
-    params.append('secret', secret);
-    params.append('response', token);
-
-    const remoteIp = (req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim();
-    if (remoteIp) params.append('remoteip', remoteIp);
-
-    const verifyRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params.toString()
-    });
-
-    const data = await verifyRes.json();
-    if (!data.success) {
-      return res.status(403).json({ ok: false, error: 'reCAPTCHA verification failed', details: data['error-codes'] || [] });
-    }
-
-    return res.status(200).json({ ok: true });
-  } catch (err) {
-    console.error('reCAPTCHA verify error', err);
-    return res.status(500).json({ ok: false, error: 'Verification request failed' });
-  }
-});

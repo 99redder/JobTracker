@@ -36,7 +36,9 @@ jobs:
             'messagingSenderId': os.environ['JT_FIREBASE_MESSAGING_SENDER_ID'],
             'appId': os.environ['JT_FIREBASE_APP_ID'],
           }
+          app_check_site_key = os.environ.get('JT_APP_CHECK_SITE_KEY', '').strip()
           print('window.JOBTRACKER_FIREBASE_CONFIG = ' + json.dumps(cfg) + ';')
+          print('window.JOBTRACKER_APP_CHECK_SITE_KEY = ' + json.dumps(app_check_site_key) + ';')
           " > firebase-config.local.js
         env:
           JT_FIREBASE_API_KEY: ${{ secrets.JT_FIREBASE_API_KEY }}
@@ -45,6 +47,28 @@ jobs:
           JT_FIREBASE_STORAGE_BUCKET: ${{ secrets.JT_FIREBASE_STORAGE_BUCKET }}
           JT_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.JT_FIREBASE_MESSAGING_SENDER_ID }}
           JT_FIREBASE_APP_ID: ${{ secrets.JT_FIREBASE_APP_ID }}
+          JT_APP_CHECK_SITE_KEY: ${{ secrets.JT_APP_CHECK_SITE_KEY }}
+
+      - name: Prepare static artifact
+        run: |
+          set -euo pipefail
+          rm -rf .pages
+          mkdir .pages
+          cp \
+            index.html \
+            styles.css \
+            app.js \
+            sw.js \
+            sw-register.js \
+            manifest.json \
+            firebase-config.local.js \
+            favicon-16x16.png \
+            favicon-32x32.png \
+            favicon-48x48.png \
+            apple-touch-icon.png \
+            icon-192x192.png \
+            icon-512x512.png \
+            .pages/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -52,7 +76,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: .pages
 
   deploy:
     environment:

@@ -7,6 +7,10 @@ if (!firebaseConfig || !firebaseConfig.apiKey || !firebaseConfig.projectId || !f
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
+const appCheckSiteKey = (window.JOBTRACKER_APP_CHECK_SITE_KEY || '').trim();
+if (appCheckSiteKey && firebase.appCheck) {
+    firebase.appCheck().activate(appCheckSiteKey, true);
+}
 const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
