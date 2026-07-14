@@ -62,7 +62,6 @@ Unknown/orphaned auth accounts are no longer auto-added to `pendingUsers`; users
 - Firebase Email/Password auth only
 - Signup passwords must be 10+ characters with uppercase, lowercase, digit, and special character; login remains compatible with old passwords.
 - No Google OAuth and no client-side reCAPTCHA gate on login/signup
-- Firebase App Check is wired on the client and activates when `window.JOBTRACKER_APP_CHECK_SITE_KEY` is non-empty.
 - Three UI containers: `auth-container`, `app-container`, `pending-approval-container`
 - Auth state observer at app.js line ~700 routes users to the correct container
 
@@ -187,10 +186,6 @@ At ≥1100px the app automatically switches to a sidebar layout via a `@media (m
   - HTTP referrers: `99redder.github.io/*` and `localhost`
   - API restrictions: Identity Toolkit API, Firebase Installations API, Token Service API
 - GitHub Pages deploy publishes only static app assets from `.pages`, not repo internals like rules or Functions source.
-- To enforce App Check:
-  - Create/register the web app in Firebase App Check using reCAPTCHA v3.
-  - Add GitHub secret `JT_APP_CHECK_SITE_KEY`.
-  - After the deployed app is confirmed sending valid App Check tokens, enable enforcement for Firestore, Storage, and Functions in Firebase Console.
 - Firestore security rules must grant:
   - `pendingUsers`: authenticated users can create their own doc; admins can read/write all
   - `approvedUsers`: all authenticated users can read; only admins can write

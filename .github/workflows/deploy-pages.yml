@@ -36,9 +36,7 @@ jobs:
             'messagingSenderId': os.environ['JT_FIREBASE_MESSAGING_SENDER_ID'],
             'appId': os.environ['JT_FIREBASE_APP_ID'],
           }
-          app_check_site_key = os.environ.get('JT_APP_CHECK_SITE_KEY', '').strip()
           print('window.JOBTRACKER_FIREBASE_CONFIG = ' + json.dumps(cfg) + ';')
-          print('window.JOBTRACKER_APP_CHECK_SITE_KEY = ' + json.dumps(app_check_site_key) + ';')
           " > firebase-config.local.js
         env:
           JT_FIREBASE_API_KEY: ${{ secrets.JT_FIREBASE_API_KEY }}
@@ -47,7 +45,6 @@ jobs:
           JT_FIREBASE_STORAGE_BUCKET: ${{ secrets.JT_FIREBASE_STORAGE_BUCKET }}
           JT_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.JT_FIREBASE_MESSAGING_SENDER_ID }}
           JT_FIREBASE_APP_ID: ${{ secrets.JT_FIREBASE_APP_ID }}
-          JT_APP_CHECK_SITE_KEY: ${{ secrets.JT_APP_CHECK_SITE_KEY }}
 
       - name: Prepare static artifact
         run: |

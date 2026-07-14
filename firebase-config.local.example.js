@@ -8,7 +8,3 @@ window.JOBTRACKER_FIREBASE_CONFIG = {
   messagingSenderId: "",
   appId: ""
 };
-
-// Optional: Firebase App Check reCAPTCHA v3 site key.
-// Leave blank until App Check is configured in Firebase Console.
-window.JOBTRACKER_APP_CHECK_SITE_KEY = "";
