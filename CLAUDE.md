@@ -45,13 +45,13 @@ A mobile-first web application for tracking permits, vehicles, bills, deposits, 
 
 New user registration requires admin approval before accessing the app:
 
-1. User signs up (email/password or Google) → added to `pendingUsers` collection
+1. User signs up with email/password → added to `pendingUsers` collection
 2. User sees "pending approval" screen (`pending-approval-container`)
 3. Admin sees pending users in the Home tab under "Pending User Approvals"
 4. Admin approves → user moved from `pendingUsers` to `approvedUsers`; admin rejects → removed from `pendingUsers`
 5. Approved users can access the app normally
 
-Google sign-in users who haven't signed up before are auto-added to `pendingUsers` as "orphaned" accounts.
+Unknown/orphaned auth accounts are no longer auto-added to `pendingUsers`; users should sign up with email/password or contact an admin.
 
 **UX update (2026-02-21):** Approval/rejection confirmations are now branded in-app modals (reusing `#delete-modal`) via `showConfirmDialog(...)` in `app.js` instead of browser-native `confirm()`/`alert()` dialogs.
 
@@ -59,7 +59,7 @@ Google sign-in users who haven't signed up before are auto-added to `pendingUser
 
 ## Authentication
 
-- Firebase Email/Password auth + Google Sign-In (popup)
+- Firebase Email/Password auth only
 - Signup passwords must be 10+ characters with uppercase, lowercase, digit, and special character; login remains compatible with old passwords.
 - reCAPTCHA v2 (checkbox) on login and signup forms
 - Frontend constants:
@@ -145,7 +145,7 @@ The file is organized with `// ====` section comments at major boundaries:
 | User Approval System | 100 | `checkUserApproval`, `loadPendingUsers`, `approvePendingUser`, `rejectPendingUser` |
 | Follow-Up System | 85 | `flagForFollowUp`, `dismissFollowUp`, `loadFollowUps` |
 | Form Configurations | 300 | `formConfigs` object — field definitions for all 8 categories |
-| UI Utilities & Auth Handlers | 390 | `showLoading`, `showMessage`, login/signup/reset/Google handlers, `openLegalModal`, `showUnpaidSummary` |
+| UI Utilities & Auth Handlers | 390 | `showLoading`, `showMessage`, login/signup/reset handlers, `openLegalModal`, `showUnpaidSummary` |
 | Auth State Observer | 705 | `auth.onAuthStateChanged`, `updateAdminUI`, `openModal`, `closeModal` |
 | Data Loading & Cleanup | 1060 | `withTimeout`, `loadAllData`, `cleanupOldActivities`, `cleanupOldPaidBills`, `loadData` |
 | Rendering | 1325 | `collapsedBillStatus`, `paidBillsSortDesc`, `paidExpensesSortDesc`, card builders (`createTaskItem`, `createPermitCard`, `createBillCard`, etc.), `renderList` |

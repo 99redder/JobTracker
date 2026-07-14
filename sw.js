@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jobtracker-v2';
+const CACHE_NAME = 'jobtracker-v3';
 const STATIC_ASSETS = new Set([
   './',
   './index.html',

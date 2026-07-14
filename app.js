@@ -796,26 +796,6 @@ loginForm.addEventListener('submit', async (e) => {
     hideLoading();
 });
 
-// Google Sign-In (Firebase Auth)
-const googleLoginBtn = document.getElementById('google-login-btn');
-if (googleLoginBtn) {
-    googleLoginBtn.addEventListener('click', async () => {
-        showLoading();
-        try {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            try {
-                await auth.signInWithPopup(provider);
-            } catch (popupErr) {
-                // Fallback for environments that block popups
-                await auth.signInWithRedirect(provider);
-            }
-        } catch (error) {
-            showMessage(error.message || 'Google sign-in failed', true);
-        }
-        hideLoading();
-    });
-}
-
 const signupPasswordInput = document.getElementById('signup-password');
 if (signupPasswordInput) {
     signupPasswordInput.addEventListener('input', () => {
@@ -943,19 +923,7 @@ auth.onAuthStateChanged(async (user) => {
             if (approvalStatus.pending) {
                 pendingMessage.textContent = 'Your account is awaiting admin approval. You will be notified once approved.';
             } else if (approvalStatus.orphaned) {
-                // If a user signs in with Google and has not been seen before, mark them as pending
-                try {
-                    await db.collection('pendingUsers').doc(user.uid).set({
-                        uid: user.uid,
-                        email: user.email,
-                        signupDate: firebase.firestore.FieldValue.serverTimestamp(),
-                        status: 'pending',
-                        authProvider: (user.providerData && user.providerData[0] && user.providerData[0].providerId) || 'google'
-                    }, { merge: true });
-                    pendingMessage.textContent = 'Your account is awaiting admin approval. You will be notified once approved.';
-                } catch (e) {
-                    pendingMessage.textContent = 'Your account needs approval. Please contact an administrator.';
-                }
+                pendingMessage.textContent = 'Your account needs approval. Please sign up with email/password or contact an administrator.';
             } else if (approvalStatus.error) {
                 pendingMessage.textContent = 'Error checking approval status. Please try again later.';
             }
