@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jobtracker-v3';
+const CACHE_NAME = 'jobtracker-v4';
 const STATIC_ASSETS = new Set([
   './',
   './index.html',
@@ -25,7 +25,7 @@ function isCacheableStaticRequest(request) {
 }
 
 // Install event - cache essential app shell files only. Never cache Firestore,
-// Firebase Storage, auth, reCAPTCHA, or other API responses that may contain PII.
+// Firebase Storage, auth, or other API responses that may contain PII.
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)

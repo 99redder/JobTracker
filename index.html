@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://firebasestorage.googleapis.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.cloudfunctions.net https://www.google.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://firestore.googleapis.com https://firebasestorage.googleapis.com; frame-src https://www.google.com https://www.gstatic.com; form-action 'self'; upgrade-insecure-requests">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://firebasestorage.googleapis.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://firestore.googleapis.com https://firebasestorage.googleapis.com; form-action 'self'; upgrade-insecure-requests">
     <meta name="referrer" content="no-referrer">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -41,7 +41,6 @@
                     <label for="login-password">Password</label>
                     <input type="password" id="login-password" required autocomplete="current-password">
                 </div>
-                <div id="login-recaptcha" class="recaptcha-container"></div>
                 <button type="submit" class="btn btn-primary">Login</button>
                 <p class="auth-switch">Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
                 <p class="auth-switch"><a href="#" id="show-reset">Forgot Password?</a></p>
@@ -64,7 +63,6 @@
                     <label for="signup-confirm">Confirm Password</label>
                     <input type="password" id="signup-confirm" required minlength="10" autocomplete="new-password">
                 </div>
-                <div id="signup-recaptcha" class="recaptcha-container"></div>
                 <button type="submit" class="btn btn-primary">Sign Up</button>
                 <p class="auth-switch">Already have an account? <a href="#" id="show-login">Login</a></p>
             </form>
@@ -382,7 +380,6 @@
     <!-- Local Firebase config (untracked). Copy firebase-config.local.example.js -> firebase-config.local.js -->
     <script src="firebase-config.local.js"></script>
     <script src="app.js"></script>
-    <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
     <script src="sw-register.js"></script>
 </body>
 </html>

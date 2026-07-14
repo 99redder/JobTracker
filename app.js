@@ -636,13 +636,6 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// reCAPTCHA v2 site key
-const RECAPTCHA_SITE_KEY = window.JOBTRACKER_RECAPTCHA_SITE_KEY || '';
-if (!RECAPTCHA_SITE_KEY) {
-    console.error('Missing RECAPTCHA_SITE_KEY — add it to firebase-config.local.js');
-}
-const RECAPTCHA_VERIFY_URL = 'https://us-central1-jobtracker-582b9.cloudfunctions.net/verifyRecaptchaToken';
-
 // Legal content (shown on login screen)
 // TODO: Update before deploy to match the current support/legal contact email. If a personal email was previously committed, run git filter-repo or contact GitHub Support to scrub it from public git history.
 const LEGAL_CONTACT_EMAIL = 'support@jobtracker.app';
@@ -722,64 +715,9 @@ function closeLegalModal() {
     legalModal.classList.add('hidden');
 }
 
-// reCAPTCHA widget IDs
-let loginRecaptchaId = null;
-let signupRecaptchaId = null;
-
-// Initialize reCAPTCHA widgets
-window.onRecaptchaLoad = function() {
-    // Render login reCAPTCHA
-    loginRecaptchaId = grecaptcha.render('login-recaptcha', {
-        'sitekey': RECAPTCHA_SITE_KEY,
-        'theme': 'dark'
-    });
-
-    // Render signup reCAPTCHA
-    signupRecaptchaId = grecaptcha.render('signup-recaptcha', {
-        'sitekey': RECAPTCHA_SITE_KEY,
-        'theme': 'dark'
-    });
-};
-
-async function verifyRecaptchaToken(recaptchaToken) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-
-    try {
-        const response = await fetch(RECAPTCHA_VERIFY_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: recaptchaToken }),
-            signal: controller.signal
-        });
-
-        const data = await response.json().catch(() => ({}));
-        return response.ok && data.ok === true;
-    } catch (error) {
-        console.error('reCAPTCHA verify request failed:', error);
-        return false;
-    } finally {
-        clearTimeout(timeout);
-    }
-}
-
 // Login
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-
-    // Check reCAPTCHA
-    const recaptchaResponse = grecaptcha.getResponse(loginRecaptchaId);
-    if (!recaptchaResponse) {
-        showMessage('Please complete the CAPTCHA', true);
-        return;
-    }
-
-    const verified = await verifyRecaptchaToken(recaptchaResponse);
-    if (!verified) {
-        showMessage('CAPTCHA verification failed. Please try again.', true);
-        grecaptcha.reset(loginRecaptchaId);
-        return;
-    }
 
     showLoading();
 
@@ -790,7 +728,6 @@ loginForm.addEventListener('submit', async (e) => {
         await auth.signInWithEmailAndPassword(email, password);
     } catch (error) {
         showMessage(error.message, true);
-        grecaptcha.reset(loginRecaptchaId);
     }
 
     hideLoading();
@@ -824,20 +761,6 @@ signupForm.addEventListener('submit', async (e) => {
         return;
     }
 
-    // Check reCAPTCHA
-    const recaptchaResponse = grecaptcha.getResponse(signupRecaptchaId);
-    if (!recaptchaResponse) {
-        showMessage('Please complete the CAPTCHA', true);
-        return;
-    }
-
-    const verified = await verifyRecaptchaToken(recaptchaResponse);
-    if (!verified) {
-        showMessage('CAPTCHA verification failed. Please try again.', true);
-        grecaptcha.reset(signupRecaptchaId);
-        return;
-    }
-
     showLoading();
 
     try {
@@ -856,10 +779,8 @@ signupForm.addEventListener('submit', async (e) => {
         await auth.signOut();
 
         showMessage('Account created successfully! Your account is pending admin approval. You will be notified once approved.');
-        grecaptcha.reset(signupRecaptchaId);
     } catch (error) {
         showMessage(error.message, true);
-        grecaptcha.reset(signupRecaptchaId);
     }
 
     hideLoading();

@@ -61,12 +61,7 @@ Unknown/orphaned auth accounts are no longer auto-added to `pendingUsers`; users
 
 - Firebase Email/Password auth only
 - Signup passwords must be 10+ characters with uppercase, lowercase, digit, and special character; login remains compatible with old passwords.
-- reCAPTCHA v2 (checkbox) on login and signup forms
-- Frontend constants:
-  - `RECAPTCHA_SITE_KEY`
-  - `RECAPTCHA_VERIFY_URL` (Cloud Function endpoint)
-- Backend verification is required and implemented in Firebase Functions (`verifyRecaptchaToken`) before login/signup proceeds.
-- reCAPTCHA backend secret now uses Firebase **params API** (`defineString('RECAPTCHA_SECRET')`) — not deprecated `functions.config()`.
+- No Google OAuth and no client-side reCAPTCHA gate on login/signup
 - Three UI containers: `auth-container`, `app-container`, `pending-approval-container`
 - Auth state observer at app.js line ~700 routes users to the correct container
 
@@ -214,14 +209,6 @@ Deploy (from repo root):
 ```bash
 firebase deploy --only functions
 ```
-
-For reCAPTCHA backend verification, ensure params secret is set before deploy:
-
-```bash
-firebase deploy --only functions
-```
-
-Firebase CLI will prompt for `RECAPTCHA_SECRET` (or set it ahead of time in params).
 
 ## Firebase Console
 
