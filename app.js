@@ -290,7 +290,7 @@ async function checkUserApproval(user) {
         // Check if user is in pendingUsers collection
         const pendingDoc = await db.collection('pendingUsers').doc(user.uid).get();
         if (pendingDoc.exists) {
-            return { approved: false, pending: true };
+            return { approved: false, pending: true, verificationRecorded: pendingDoc.data().emailVerified === true };
         }
 
         // User is not in either collection (edge case - shouldn't happen)
@@ -443,10 +443,14 @@ async function loadPendingUsers() {
                 user.signupDate.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) :
                 'Unknown';
 
+            // Set by the user's own client once Firebase confirms their email (rules check the token)
+            const emailVerified = user.emailVerified === true;
+
             item.innerHTML = `
                 <div class="pending-user-content">
                     <span class="pending-user-email">${escapeHtml(user.email)}</span>
                     <span class="pending-user-meta">Signed up on ${signupDate}</span>
+                    <span class="pending-user-verified ${emailVerified ? 'is-verified' : 'is-unverified'}">${emailVerified ? '✓ Email verified' : 'Email not verified yet'}</span>
                 </div>
                 <div class="pending-user-actions">
                     <button class="btn btn-small btn-approve" data-uid="${escapeHtml(user.uid)}">Approve</button>
@@ -456,7 +460,7 @@ async function loadPendingUsers() {
 
             // Approve button
             item.querySelector('.btn-approve').addEventListener('click', () => {
-                approvePendingUser(user.uid, user.email, user.signupDate);
+                approvePendingUser(user.uid, user.email, user.signupDate, emailVerified);
             });
 
             // Reject button
@@ -472,15 +476,21 @@ async function loadPendingUsers() {
     }
 }
 
-// Approve a pending user (admin only)
-async function approvePendingUser(uid, email, signupDate) {
+// Approve a pending user (admin only). Unverified emails need an explicit
+// "Approve Anyway": anyone can sign up with an address they don't own.
+async function approvePendingUser(uid, email, signupDate, emailVerified) {
     if (!isAdmin()) return;
 
-    const confirmed = await showConfirmDialog({
+    const confirmed = await showConfirmDialog(emailVerified ? {
         title: 'Approve User',
         message: `Approve user ${email}?`,
         confirmText: 'Approve',
         confirmClass: 'btn-primary'
+    } : {
+        title: 'Email Not Verified',
+        message: `${email} hasn't verified this email address yet, so it may not really be them. Ask them to open the verification email and tap Check Again. Only approve now if you've confirmed with them directly.`,
+        confirmText: 'Approve Anyway',
+        confirmClass: 'btn-danger'
     });
     if (!confirmed) return;
 
@@ -492,7 +502,8 @@ async function approvePendingUser(uid, email, signupDate) {
             email: email,
             approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
             approvedBy: currentUser.uid,
-            signupDate: signupDate
+            signupDate: signupDate,
+            emailVerified: emailVerified
         });
 
         // Remove from pendingUsers collection
@@ -709,8 +720,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Legal content (shown on login screen)
-// TODO: Update before deploy to match the current support/legal contact email. If a personal email was previously committed, run git filter-repo or contact GitHub Support to scrub it from public git history.
-const LEGAL_CONTACT_EMAIL = 'support@jobtracker.app';
+const LEGAL_CONTACT_EMAIL = 'support@easternshore.ai';
 
 function openLegalModal(kind) {
     if (!legalModal || !legalTitle || !legalBody) return;
@@ -813,6 +823,21 @@ if (signupPasswordInput) {
     renderPasswordChecklist(signupPasswordInput.value);
 }
 
+// Verification links return to the app after Firebase confirms the email.
+const APP_HOME_URL = `${window.location.origin}${window.location.pathname}`;
+
+async function sendVerificationEmail(user) {
+    try {
+        await user.sendEmailVerification({ url: APP_HOME_URL });
+    } catch (error) {
+        if (error.code !== 'auth/unauthorized-continue-uri' && error.code !== 'auth/invalid-continue-uri') throw error;
+        await user.sendEmailVerification();
+    }
+}
+
+// While signing up, the auth observer waits so the pending doc exists before routing.
+let signupInProgress = false;
+
 // Sign Up
 signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -834,6 +859,7 @@ signupForm.addEventListener('submit', async (e) => {
     }
 
     showLoading();
+    signupInProgress = true;
 
     try {
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
@@ -847,14 +873,27 @@ signupForm.addEventListener('submit', async (e) => {
             status: 'pending'
         });
 
-        // Sign out immediately so onAuthStateChanged doesn't grant access
-        await auth.signOut();
+        let verificationSent = true;
+        try {
+            await sendVerificationEmail(user);
+        } catch (error) {
+            // They can send it again from the pending screen
+            verificationSent = false;
+            console.warn('Could not send verification email:', error);
+        }
 
-        showMessage('Account created! An admin needs to approve it before you can use Job Tracker. Log in any time to check.');
+        signupInProgress = false;
+        await showScreenForUser(user);
+        if (!verificationSent) {
+            setPendingNote("We couldn't send the verification email. Tap Resend verification email.", true);
+        }
     } catch (error) {
+        signupInProgress = false;
+        if (auth.currentUser) await auth.signOut();
         showMessage(error.message, true);
     }
 
+    signupInProgress = false;
     hideLoading();
 });
 
@@ -891,13 +930,40 @@ document.getElementById('pending-logout-btn').addEventListener('click', async ()
     hideLoading();
 });
 
-// Pending approval: re-check without logging out once an admin approves
+// Pending approval: re-check email verification and approval without logging out
 document.getElementById('pending-refresh-btn').addEventListener('click', async () => {
     if (!auth.currentUser) return;
     showLoading();
+    try {
+        await auth.currentUser.reload();
+    } catch (error) {
+        console.warn('Could not refresh account:', error);
+    }
     await showScreenForUser(auth.currentUser);
     hideLoading();
 });
+
+document.getElementById('pending-resend-btn').addEventListener('click', async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    showLoading();
+    try {
+        await sendVerificationEmail(user);
+        setPendingNote(`Sent! Check ${user.email}, including the spam folder.`);
+    } catch (error) {
+        setPendingNote(error.code === 'auth/too-many-requests'
+            ? 'Too many emails were sent. Wait a few minutes and try again.'
+            : `Couldn't send the email: ${error.message}`, true);
+    }
+    hideLoading();
+});
+
+function setPendingNote(text, isError = false) {
+    const note = document.getElementById('pending-note');
+    note.textContent = text;
+    note.classList.toggle('is-error', isError);
+    note.classList.toggle('hidden', !text);
+}
 
 // ============================================
 // AUTH STATE OBSERVER
@@ -918,11 +984,31 @@ async function showScreenForUser(user) {
 
         // Show pending approval container
         pendingApprovalContainer.classList.remove('hidden');
+        setPendingNote('');
+
+        // The freshly refreshed ID token carries Firebase's current email_verified flag
+        const emailVerified = currentUserClaims.email_verified === true;
+        const pendingTitle = document.getElementById('pending-title');
+        const resendButton = document.getElementById('pending-resend-btn');
+        pendingTitle.textContent = 'Pending Approval';
+        resendButton.classList.add('hidden');
 
         // Update pending message
         const pendingMessage = document.getElementById('pending-message');
-        if (approvalStatus.pending) {
-            pendingMessage.textContent = 'Your account is awaiting admin approval. Once you are approved, tap Check Again or log in again.';
+        if (approvalStatus.pending && !emailVerified) {
+            pendingTitle.textContent = 'Check Your Email';
+            pendingMessage.textContent = `We sent a verification link to ${user.email}. Open it, then tap Check Again. After that, an admin will approve your account.`;
+            resendButton.classList.remove('hidden');
+        } else if (approvalStatus.pending) {
+            // Let the admin see the email is verified (rules only allow this with a verified token)
+            if (!approvalStatus.verificationRecorded) {
+                try {
+                    await db.collection('pendingUsers').doc(user.uid).update({ emailVerified: true });
+                } catch (error) {
+                    console.warn('Could not record email verification:', error);
+                }
+            }
+            pendingMessage.textContent = 'Your email is verified. An admin needs to approve your account. Once they do, tap Check Again or log in again.';
         } else if (approvalStatus.orphaned) {
             pendingMessage.textContent = 'Your account needs approval. Please sign up with email/password or contact an administrator.';
         } else if (approvalStatus.error) {
@@ -947,6 +1033,7 @@ async function showScreenForUser(user) {
 }
 
 auth.onAuthStateChanged(async (user) => {
+    if (signupInProgress) return; // the signup handler routes when it's done
     if (user) {
         await showScreenForUser(user);
     } else {

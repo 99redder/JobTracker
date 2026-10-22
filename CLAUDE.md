@@ -49,11 +49,12 @@ A mobile-first web application for tracking permits, vehicles, bills, deposits, 
 
 New user registration requires admin approval before accessing the app:
 
-1. User signs up with email/password → added to `pendingUsers` collection
-2. User sees "pending approval" screen (`pending-approval-container`)
-3. Admin sees pending users in the Home tab under "Pending User Approvals"
-4. Admin approves → user moved from `pendingUsers` to `approvedUsers`; admin rejects → removed from `pendingUsers`
-5. Approved users can access the app normally. A pending user can tap **Check Again** on the pending screen (`showScreenForUser()` re-runs the approval check) instead of logging out and back in.
+1. User signs up with email/password → added to `pendingUsers` and sent a verification email (`sendVerificationEmail()`; the link's continue URL returns to the app). They stay signed in and land on the pending screen (`pending-approval-container`). The auth observer skips routing while `signupInProgress` so the pending doc exists first.
+2. Until Firebase marks the email verified, the pending screen says **Check Your Email** with **Check Again** and **Resend verification email**. Check Again reloads the user and `showScreenForUser()` re-checks using the refreshed ID token's `email_verified` claim.
+3. Once verified, the user's own client sets `emailVerified: true` on their `pendingUsers` doc (Firestore rules allow only that field, only with a verified token), and the screen switches to **Pending Approval**.
+4. Admin sees pending users in the Home tab under "Pending User Approvals", each tagged **✓ Email verified** or **Email not verified yet**. Approving an unverified user shows an "Email Not Verified" warning with **Approve Anyway** (anyone can sign up with an address they don't own).
+5. Admin approves → user moved from `pendingUsers` to `approvedUsers` (with `emailVerified` recorded); admin rejects → removed from `pendingUsers`
+6. Approved users can access the app normally (existing approved users are not required to verify). A pending user can tap **Check Again** instead of logging out and back in.
 
 Unknown/orphaned auth accounts are no longer auto-added to `pendingUsers`; users should sign up with email/password or contact an admin.
 
@@ -165,7 +166,8 @@ Modeled on the bibleapp install flow, in vanilla JS (`install.js`, wrapped in an
 ### Legal Modal
 - Privacy Policy and Terms of Service shown in a modal (`legalModal`)
 - Triggered by links on login/signup forms
-- `openLegalModal(kind)` at app.js line ~710; kind is `'privacy'` or `'terms'`
+- `openLegalModal(kind)` at app.js line ~720; kind is `'privacy'` or `'terms'`
+- Contact address in both: `LEGAL_CONTACT_EMAIL` = `support@easternshore.ai`
 
 ## app.js Section Map
 
@@ -234,7 +236,7 @@ At ≥1100px the app automatically switches to a sidebar layout via a `@media (m
 - Firestore rules (`firestore.rules`) — default deny, then:
   - App collections (`permits`, `vehicles`, `bills`, `deposits`, `inspections`, `licenses`): admins and approved users read; only admins write
   - `activity`: admins only
-  - `pendingUsers`: a signed-in user can create only their own doc (fixed fields, own email, `signupDate == request.time`); admins read/update/delete
+  - `pendingUsers`: a signed-in user can create only their own doc (fixed fields, own email, `signupDate == request.time`, no `emailVerified`) and later set only `emailVerified: true` on it when their token has `email_verified`; admins read/update/delete
   - `approvedUsers`: a user can read only their own doc; only admins write
   - `followups`: admins read/update/delete; approved users can create with validated fields (title ≤ 1000 chars, `flaggedAt == request.time`)
 - Storage rules (`storage.rules`): admins and approved users read `permits/` and `licenses/`; admins upload raster images or PDFs under 10 MB

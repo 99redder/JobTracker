@@ -126,11 +126,13 @@
                     <circle cx="12" cy="12" r="10"></circle>
                     <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
-                <h2>Pending Approval</h2>
+                <h2 id="pending-title">Pending Approval</h2>
                 <p id="pending-message">Your account is awaiting admin approval.</p>
+                <p id="pending-note" class="pending-note hidden" aria-live="polite"></p>
                 <div class="pending-actions">
                     <button id="pending-refresh-btn" class="btn btn-primary">Check Again</button>
                     <button id="pending-logout-btn" class="btn btn-secondary">Logout</button>
+                    <button type="button" id="pending-resend-btn" class="btn btn-small btn-text hidden">Resend verification email</button>
                 </div>
             </div>
 

@@ -446,6 +446,20 @@ body {
     max-width: 200px;
 }
 
+.pending-approval-content .pending-note {
+    margin: -0.75rem 0 1.25rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.5rem;
+    background-color: #dcfce7;
+    color: #166534;
+    font-size: 0.875rem;
+}
+
+.pending-approval-content .pending-note.is-error {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
 /* App Header */
 .app-header {
     display: flex;
@@ -1119,6 +1133,25 @@ body {
 .pending-user-meta {
     font-size: 0.75rem;
     color: var(--text-muted);
+}
+
+.pending-user-verified {
+    width: fit-content;
+    margin-top: 0.125rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.pending-user-verified.is-verified {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.pending-user-verified.is-unverified {
+    background-color: #fef3c7;
+    color: #92400e;
 }
 
 .pending-user-actions {

@@ -71,7 +71,16 @@ service cloud.firestore {
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.signupDate == request.time
         && request.resource.data.status == 'pending';
-      allow update, delete: if isAdmin();
+      // A user may mark their own email verified, but only with a token that
+      // Firebase Auth has marked email_verified (admins see it before approving)
+      allow update: if isAdmin() || (
+        isSignedIn()
+        && request.auth.uid == uid
+        && request.auth.token.email_verified == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['emailVerified'])
+        && request.resource.data.emailVerified == true
+      );
+      allow delete: if isAdmin();
     }
 
     match /followups/{docId} {
