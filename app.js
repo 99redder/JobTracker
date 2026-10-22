@@ -1039,6 +1039,10 @@ auth.onAuthStateChanged(async (user) => {
     } else {
         currentUser = null;
         currentUserClaims = {};
+        // Signed out (e.g. after signing up): start from the Login form
+        loginForm.classList.remove('hidden');
+        signupForm.classList.add('hidden');
+        resetForm.classList.add('hidden');
         authContainer.classList.remove('hidden');
         appContainer.classList.add('hidden');
         pendingApprovalContainer.classList.add('hidden');

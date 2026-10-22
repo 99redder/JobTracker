@@ -8,6 +8,7 @@ A mobile-first web application for tracking permits, vehicles, bills, deposits, 
 
 - **Frontend**: Vanilla HTML, CSS, JavaScript (no frameworks)
 - **Backend**: Firebase (Auth, Firestore, Storage)
+- **Firebase JS SDK**: 12.19.0 compat builds loaded from `https://www.gstatic.com/firebasejs/12.19.0/` (script tags at the bottom of `index.html`). When upgrading, keep all five tags on the same version and bump `CACHE_NAME` in `sw.js`.
 - **Hosting**: GitHub Pages
 - **Theme**: Light (default) and dark modes with a yellow (#facc15) brand accent
 
