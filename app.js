@@ -221,13 +221,16 @@ window.setAdminClaimForUser = setAdminClaimForUser;
 
 // ============================================
 // PASSWORD POLICY
+// Mirrors the Firebase Auth password policy (Require mode), which rejects
+// sign-ups that miss any rule. "Special" is Firebase's own character set:
+// ^ $ * . [ ] { } ( ) ? " ! @ # % & / \ , > < ' : ; | _ ~  (not + - = or `)
 // ============================================
 const PASSWORD_RULES = [
     { id: 'length', label: 'Minimum 10 characters', test: password => password.length >= 10 },
     { id: 'uppercase', label: 'At least one uppercase letter', test: password => /[A-Z]/.test(password) },
     { id: 'lowercase', label: 'At least one lowercase letter', test: password => /[a-z]/.test(password) },
     { id: 'digit', label: 'At least one digit', test: password => /[0-9]/.test(password) },
-    { id: 'special', label: 'At least one special character', test: password => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) }
+    { id: 'special', label: 'At least one special character, like ! @ # $ % & * ?', test: password => /[\^$*.\[\]{}()?"!@#%&\/\\,><':;|_~]/.test(password) }
 ];
 
 function validatePassword(password) {

@@ -64,7 +64,8 @@ Unknown/orphaned auth accounts are no longer auto-added to `pendingUsers`; users
 ## Authentication
 
 - Firebase Email/Password auth only
-- Signup passwords must be 10+ characters with uppercase, lowercase, digit, and special character; login remains compatible with old passwords.
+- Signup passwords must be 10+ characters with uppercase, lowercase, digit, and special character. Firebase Auth enforces this server-side (Authentication → Settings → Password policy: **Require** mode, "Force upgrade on sign-in" **off**, so accounts with older passwords can still log in). The app's checklist (`PASSWORD_RULES` in `app.js`) mirrors the policy, including Firebase's special-character set `^ $ * . [ ] { } ( ) ? " ! @ # % & / \ , > < ' : ; | _ ~` (`+ - =` and backtick don't count). If old accounts ever get locked out, switch the policy to Notify.
+- Email enumeration protection is on. Multi-factor auth would need the Identity Platform upgrade (not enabled).
 - No Google OAuth and no client-side reCAPTCHA gate on login/signup
 - Three UI containers: `auth-container`, `app-container`, `pending-approval-container`
 - Auth state observer at app.js line ~945 calls `showScreenForUser()` (~line 905), which routes users to the correct container
@@ -222,9 +223,13 @@ At ≥1100px the app automatically switches to a sidebar layout via a `@media (m
 
 ## Security
 
-- API key restricted in Google Cloud Console:
-  - HTTP referrers: `99redder.github.io/*` and `localhost`
-  - API restrictions: Identity Toolkit API, Firebase Installations API, Token Service API
+- Web API key ("Job Tracker web key" in Google Cloud → APIs & Services → Credentials), as of 2026-10-22:
+  - Website restrictions: `99redder.github.io/*` (plus the `/JobTracker/` entries), `jobtracker-582b9.firebaseapp.com/*`, `jobtracker-582b9.web.app/*`, `localhost`
+  - API restrictions: Cloud Firestore API, Cloud Storage for Firebase API, Identity Toolkit API, Token Service API
+- Firebase Auth authorized domains: `localhost`, `jobtracker-582b9.firebaseapp.com`, `jobtracker-582b9.web.app`, `99redder.github.io`
+- Firestore point-in-time recovery (7 days) and a daily backup schedule (14-day retention) are on (Google Cloud → Firestore → (default) → Disaster recovery)
+- App Check: Firestore and Auth are in Monitoring mode only and the app has no App Check SDK, so **never turn on enforcement** without adding App Check back to the client — it would block every request
+- Billing budget "Firebase Project jobtracker-582b9 Monthly": $5/month with alerts at 50/90/100% (project is on Blaze)
 - GitHub Pages deploy publishes only static app assets from `.pages`, not repo internals like rules or Functions source.
 - Firestore rules (`firestore.rules`) — default deny, then:
   - App collections (`permits`, `vehicles`, `bills`, `deposits`, `inspections`, `licenses`): admins and approved users read; only admins write
