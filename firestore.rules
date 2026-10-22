@@ -69,6 +69,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid', 'email', 'signupDate', 'status', 'authProvider'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.email == request.auth.token.email
+        && request.resource.data.signupDate == request.time
         && request.resource.data.status == 'pending';
       allow update, delete: if isAdmin();
     }
@@ -79,8 +80,13 @@ service cloud.firestore {
         isApprovedUser()
         && request.resource.data.keys().hasOnly(['category', 'itemId', 'itemTitle', 'flaggedBy', 'flaggedByEmail', 'flaggedAt'])
         && request.resource.data.category in ['permits', 'vehicles', 'bills', 'deposits', 'inspections', 'licenses']
+        && request.resource.data.itemId is string
+        && request.resource.data.itemId.size() <= 128
+        && request.resource.data.itemTitle is string
+        && request.resource.data.itemTitle.size() <= 1000
         && request.resource.data.flaggedBy == request.auth.uid
         && request.resource.data.flaggedByEmail == request.auth.token.email
+        && request.resource.data.flaggedAt == request.time
       );
     }
   }

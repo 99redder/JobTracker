@@ -3,183 +3,170 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Icon Generator - JobTracker</title>
+    <title>Icon Generator - Job Tracker</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 50px auto;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 860px;
+            margin: 40px auto;
             padding: 20px;
-            background: #000;
-            color: #FCD34D;
+            background: #f5f5f4;
+            color: #1c1917;
         }
         h1 {
             text-align: center;
         }
         .instructions {
-            background: #171717;
+            background: #ffffff;
             padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
-            border: 2px solid #FCD34D;
+            border: 2px solid #facc15;
         }
         .preview {
             display: flex;
             gap: 20px;
             flex-wrap: wrap;
+            align-items: flex-start;
             margin: 20px 0;
         }
         .preview-item {
             text-align: center;
-            background: #171717;
+            background: #ffffff;
             padding: 15px;
             border-radius: 8px;
-            border: 1px solid #333;
+            border: 1px solid #e7e5e4;
+            font-size: 13px;
         }
-        .preview-item canvas {
+        .preview-item img {
             display: block;
             margin: 10px auto;
-            border: 1px solid #FCD34D;
+            /* Checkerboard shows which icons have transparent corners */
+            background: repeating-conic-gradient(#e7e5e4 0% 25%, #ffffff 0% 50%) 0 0 / 12px 12px;
         }
         button {
-            background: #FCD34D;
+            background: #facc15;
             color: #000;
             border: none;
             padding: 12px 24px;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            border-radius: 4px;
+            border-radius: 6px;
             margin: 5px;
         }
         button:hover {
-            background: #F59E0B;
+            background: #eab308;
         }
         .button-group {
             text-align: center;
             margin: 20px 0;
         }
-        .success {
-            background: #065f46;
-            color: #d1fae5;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 10px 0;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
-    <h1>🏗️ JobTracker Icon Generator</h1>
+    <h1>Job Tracker Icon Generator</h1>
 
     <div class="instructions">
-        <h2>Instructions:</h2>
+        <p>Icons are the wrench from the app logo on the brand yellow (#facc15).</p>
         <ol>
-            <li>Click "Generate All Icons" button below</li>
-            <li>Preview icons will appear</li>
-            <li>Click "Download All" to save all icon files</li>
-            <li>Place the downloaded files in your JobTracker directory</li>
+            <li>Click "Download All" to save every icon file.</li>
+            <li>Replace the files of the same name in the repo root.</li>
+            <li>Bump <code>CACHE_NAME</code> in <code>sw.js</code> so installed apps pick them up.</li>
         </ol>
     </div>
 
     <div class="button-group">
-        <button onclick="generateIcons()">Generate All Icons</button>
-        <button onclick="downloadAll()" id="downloadBtn" style="display:none;">Download All</button>
+        <button onclick="downloadAll()">Download All</button>
     </div>
 
     <div class="preview" id="preview"></div>
 
     <script>
-        const iconSVG = `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-                <circle cx="256" cy="256" r="256" fill="#000000"/>
-                <g transform="translate(256, 256)">
-                    <ellipse cx="0" cy="80" rx="160" ry="30" fill="#FCD34D"/>
-                    <path d="M -140 80 Q -140 -80 0 -120 Q 140 -80 140 80 Z" fill="#FCD34D"/>
-                    <ellipse cx="0" cy="-40" rx="145" ry="20" fill="#F59E0B"/>
-                    <path d="M -10 -120 L -5 -140 L 5 -140 L 10 -120 Z" fill="#F59E0B"/>
-                    <ellipse cx="0" cy="80" rx="160" ry="30" fill="#F59E0B" opacity="0.3"/>
-                    <ellipse cx="-40" cy="-60" rx="30" ry="40" fill="#FEFCE8" opacity="0.3"/>
-                </g>
-            </svg>
-        `;
+        // Feather "tool" wrench, the same path as the logo in index.html.
+        // Its outline is 19 units square, centred on (12.5, 11.5) in a 24-unit box.
+        const WRENCH_PATH = 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z';
 
-        const sizes = [
-            { size: 16, name: 'favicon-16x16.png' },
-            { size: 32, name: 'favicon-32x32.png' },
-            { size: 48, name: 'favicon-48x48.png' },
-            { size: 180, name: 'apple-touch-icon.png' },
-            { size: 192, name: 'icon-192x192.png' },
-            { size: 512, name: 'icon-512x512.png' }
+        // corner: tile corner radius on a 512 canvas (0 = full bleed, no transparency)
+        // wrench: wrench width as a fraction of the icon
+        // stroke: line weight in logo units (the logo uses 2)
+        const VARIANTS = {
+            // Browser tabs and bookmarks: bigger, bolder wrench so it reads at 16px
+            favicon: { corner: 96, wrench: 0.7, stroke: 2.75 },
+            // Desktop installs and Android "any" icon: rounded tile
+            any: { corner: 112, wrench: 0.56, stroke: 2.25 },
+            // iOS home screen: iOS rounds the corners itself and fills transparency with black
+            apple: { corner: 0, wrench: 0.58, stroke: 2.25 },
+            // Android adaptive icons: wrench kept inside the 80% safe zone
+            maskable: { corner: 0, wrench: 0.5, stroke: 2.25 }
+        };
+
+        const ICONS = [
+            { name: 'favicon-16x16.png', size: 16, variant: 'favicon' },
+            { name: 'favicon-32x32.png', size: 32, variant: 'favicon' },
+            { name: 'favicon-48x48.png', size: 48, variant: 'favicon' },
+            { name: 'apple-touch-icon.png', size: 180, variant: 'apple' },
+            { name: 'icon-192x192.png', size: 192, variant: 'any' },
+            { name: 'icon-512x512.png', size: 512, variant: 'any' },
+            { name: 'icon-maskable-192x192.png', size: 192, variant: 'maskable' },
+            { name: 'icon-maskable-512x512.png', size: 512, variant: 'maskable' }
         ];
 
-        let generatedIcons = [];
+        function iconSVG(variantName) {
+            const { corner, wrench, stroke } = VARIANTS[variantName];
+            const scale = (512 * wrench / 19).toFixed(3);
+            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="${corner}" fill="#facc15"/>
+  <path d="${WRENCH_PATH}" transform="translate(256 256) scale(${scale}) translate(-12.5 -11.5)" fill="none" stroke="#000000" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+        }
 
-        function generateIcons() {
-            const preview = document.getElementById('preview');
-            preview.innerHTML = '';
-            generatedIcons = [];
-
-            sizes.forEach(({ size, name }) => {
+        // Renders one icon to a PNG data URL.
+        function renderIcon(name) {
+            const icon = ICONS.find(i => i.name === name);
+            return new Promise((resolve, reject) => {
                 const canvas = document.createElement('canvas');
-                canvas.width = size;
-                canvas.height = size;
-                const ctx = canvas.getContext('2d');
-
+                canvas.width = icon.size;
+                canvas.height = icon.size;
                 const img = new Image();
-                img.onload = function() {
-                    ctx.drawImage(img, 0, 0, size, size);
-
-                    // Store for download
-                    canvas.toBlob((blob) => {
-                        generatedIcons.push({ blob, name });
-                    });
-
-                    // Add to preview
-                    const previewItem = document.createElement('div');
-                    previewItem.className = 'preview-item';
-                    previewItem.innerHTML = `
-                        <div>${name}</div>
-                        <div>${size}x${size}</div>
-                    `;
-                    previewItem.appendChild(canvas);
-                    preview.appendChild(previewItem);
+                img.onload = () => {
+                    canvas.getContext('2d').drawImage(img, 0, 0, icon.size, icon.size);
+                    resolve(canvas.toDataURL('image/png'));
                 };
-
-                const svgBlob = new Blob([iconSVG], { type: 'image/svg+xml' });
-                const url = URL.createObjectURL(svgBlob);
-                img.src = url;
+                img.onerror = reject;
+                img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(iconSVG(icon.variant));
             });
-
-            // Show download button after a delay
-            setTimeout(() => {
-                document.getElementById('downloadBtn').style.display = 'inline-block';
-            }, 1000);
         }
 
-        function downloadAll() {
-            if (generatedIcons.length === 0) {
-                alert('Please generate icons first!');
-                return;
+        async function showPreview() {
+            const preview = document.getElementById('preview');
+            for (const icon of ICONS) {
+                const item = document.createElement('div');
+                item.className = 'preview-item';
+                const img = document.createElement('img');
+                img.src = await renderIcon(icon.name);
+                img.width = Math.max(icon.size, 48);
+                img.height = Math.max(icon.size, 48);
+                item.append(icon.name, img, `${icon.size}x${icon.size}`);
+                preview.appendChild(item);
             }
-
-            generatedIcons.forEach(({ blob, name }) => {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = name;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            });
-
-            // Show success message
-            const success = document.createElement('div');
-            success.className = 'success';
-            success.textContent = `✓ Successfully downloaded ${generatedIcons.length} icon files!`;
-            document.querySelector('.button-group').appendChild(success);
         }
+
+        async function downloadAll() {
+            for (const icon of ICONS) {
+                const a = document.createElement('a');
+                a.href = await renderIcon(icon.name);
+                a.download = icon.name;
+                a.click();
+            }
+            const svg = new Blob([iconSVG('any')], { type: 'image/svg+xml' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(svg);
+            a.download = 'icon.svg';
+            a.click();
+        }
+
+        showPreview();
     </script>
 </body>
 </html>

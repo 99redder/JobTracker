@@ -1,16 +1,58 @@
-/* CSS Variables */
+/* CSS Variables
+   Light is the default theme. Dark mode is opt-in from the header toggle:
+   theme-init.js sets data-theme="dark" on <html> before first paint. */
 :root {
+    color-scheme: light;
     --primary-color: #facc15;
     --primary-hover: #eab308;
     --danger-color: #dc2626;
     --danger-hover: #b91c1c;
     --success-color: #facc15;
     --warning-color: #fde047;
+    --accent-text: #a16207;
+    --flag-color: #b45309;
+    --bg-color: #f5f5f4;
+    --card-bg: #ffffff;
+    --surface-alt: #fafaf9;
+    --surface-hover: #f0efed;
+    --input-bg: #ffffff;
+    --header-bg: #ffffff;
+    --nav-bg: #ffffff;
+    --sidebar-bg: #ffffff;
+    --nav-active-bg: rgba(250, 204, 21, 0.18);
+    --secondary-bg: #e7e5e4;
+    --secondary-hover: #d6d3d1;
+    --text-color: #1c1917;
+    --text-muted: #57534e;
+    --border-color: #e7e5e4;
+    --overlay: rgba(28, 25, 23, 0.45);
+    --loading-overlay: rgba(255, 255, 255, 0.75);
+    --auth-bg: linear-gradient(135deg, #fefce8 0%, #f5f5f4 100%);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --accent-text: #facc15;
+    --flag-color: #f59e0b;
     --bg-color: #0a0a0a;
     --card-bg: #171717;
+    --surface-alt: #1f1f1f;
+    --surface-hover: #2a2a2a;
+    --input-bg: #0a0a0a;
+    --header-bg: #000000;
+    --nav-bg: #171717;
+    --sidebar-bg: #111111;
+    --nav-active-bg: rgba(250, 204, 21, 0.08);
+    --secondary-bg: #262626;
+    --secondary-hover: #333333;
     --text-color: #fafafa;
     --text-muted: #a3a3a3;
     --border-color: #262626;
+    --overlay: rgba(0, 0, 0, 0.5);
+    --loading-overlay: rgba(0, 0, 0, 0.8);
+    --auth-bg: linear-gradient(135deg, #171717 0%, #000000 100%);
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.4);
 }
@@ -76,13 +118,13 @@ body {
 }
 
 .btn-secondary {
-    background-color: var(--border-color);
+    background-color: var(--secondary-bg);
     color: var(--text-color);
 }
 
 .btn-secondary:hover,
 .btn-secondary:active {
-    background-color: #d1d5db;
+    background-color: var(--secondary-hover);
 }
 
 .btn-danger {
@@ -123,17 +165,17 @@ body {
     align-items: center;
     justify-content: center;
     padding: 1rem;
-    background: linear-gradient(135deg, #171717 0%, #000000 100%);
+    background: var(--auth-bg);
 }
 
 .auth-box {
-    background: #171717;
+    background: var(--card-bg);
     padding: 2rem;
     border-radius: 1rem;
     width: 100%;
     max-width: 400px;
     box-shadow: var(--shadow-lg);
-    border: 1px solid #262626;
+    border: 1px solid var(--border-color);
 }
 
 /* Logo Styles */
@@ -148,7 +190,7 @@ body {
 .logo-icon {
     width: 28px;
     height: 28px;
-    color: var(--primary-color);
+    color: var(--accent-text);
 }
 
 .logo-text {
@@ -159,7 +201,7 @@ body {
 }
 
 .logo-highlight {
-    color: var(--primary-color);
+    color: var(--accent-text);
 }
 
 /* Header Logo */
@@ -172,7 +214,7 @@ body {
 .header-logo-icon {
     width: 16px;
     height: 16px;
-    color: var(--primary-color);
+    color: var(--accent-text);
 }
 
 .header-logo-text {
@@ -208,7 +250,7 @@ body {
     font-size: 1rem;
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
-    background-color: #0a0a0a;
+    background-color: var(--input-bg);
     color: var(--text-color);
     transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -217,8 +259,8 @@ body {
 .form-group select:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.2);
+    border-color: var(--accent-text);
+    box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.25);
 }
 
 .form-group textarea {
@@ -226,18 +268,18 @@ body {
     min-height: 80px;
 }
 
-/* Yellow calendar picker icon on date/month inputs (WebKit/Chromium).
-   Filter converts the default near-black SVG to #facc15. */
-.form-group input[type="date"],
-.form-group input[type="month"] {
-    color-scheme: dark;
-}
-
+/* Date/month pickers follow the page color-scheme. In dark mode the
+   calendar icon is tinted yellow (WebKit/Chromium): the filter converts the
+   default near-black SVG to #facc15. */
 .form-group input[type="date"]::-webkit-calendar-picker-indicator,
 .form-group input[type="month"]::-webkit-calendar-picker-indicator {
-    filter: brightness(0) saturate(100%) invert(82%) sepia(40%) saturate(2010%) hue-rotate(359deg) brightness(101%) contrast(96%);
     cursor: pointer;
     opacity: 1;
+}
+
+:root[data-theme="dark"] .form-group input[type="date"]::-webkit-calendar-picker-indicator,
+:root[data-theme="dark"] .form-group input[type="month"]::-webkit-calendar-picker-indicator {
+    filter: brightness(0) saturate(100%) invert(82%) sepia(40%) saturate(2010%) hue-rotate(359deg) brightness(101%) contrast(96%);
 }
 
 .form-group input[type="date"]::-webkit-calendar-picker-indicator:hover,
@@ -285,7 +327,7 @@ body {
 }
 
 .auth-switch a {
-    color: var(--primary-color);
+    color: var(--accent-text);
     text-decoration: none;
     font-weight: 500;
 }
@@ -311,7 +353,7 @@ body {
 }
 
 .auth-legal a:hover {
-    color: var(--primary-color);
+    color: var(--accent-text);
 }
 
 .legal-sep {
@@ -338,7 +380,7 @@ body {
 }
 
 .legal-body a {
-    color: var(--primary-color);
+    color: var(--accent-text);
 }
 
 .message {
@@ -365,7 +407,7 @@ body {
     align-items: center;
     justify-content: center;
     padding: 1rem;
-    background: linear-gradient(135deg, #171717 0%, #000000 100%);
+    background: var(--auth-bg);
 }
 
 .pending-approval-content {
@@ -376,7 +418,7 @@ body {
 .pending-icon {
     width: 64px;
     height: 64px;
-    color: var(--primary-color);
+    color: var(--accent-text);
     margin: 0 auto 1.5rem;
 }
 
@@ -392,6 +434,13 @@ body {
     line-height: 1.6;
 }
 
+.pending-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
 .pending-approval-content .btn {
     width: 100%;
     max-width: 200px;
@@ -402,9 +451,10 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    min-height: 48px;
     padding: 0.5rem 0.75rem;
-    background-color: #000000;
-    color: var(--primary-color);
+    background-color: var(--header-bg);
+    color: var(--accent-text);
     border-bottom: 2px solid var(--primary-color);
     position: sticky;
     top: 0;
@@ -422,16 +472,62 @@ body {
     background-color: var(--primary-hover);
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Square icon buttons in the header (install, light/dark toggle) */
+.btn-header-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-header-icon:hover {
+    border-color: var(--primary-color);
+    color: var(--accent-text);
+}
+
+.btn-header-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* The toggle shows the theme you'd switch to: moon in light, sun in dark */
+.theme-icon-sun {
+    display: none;
+}
+
+:root[data-theme="dark"] .theme-icon-sun {
+    display: block;
+}
+
+:root[data-theme="dark"] .theme-icon-moon {
+    display: none;
+}
+
 /* Tab Navigation */
 .tab-nav {
     display: flex;
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
-    background-color: #171717;
+    background-color: var(--nav-bg);
     border-bottom: 1px solid var(--border-color);
     position: sticky;
-    top: 58px;
+    top: 48px; /* directly under the 48px header */
     z-index: 99;
 }
 
@@ -466,7 +562,7 @@ body {
 }
 
 .tab-btn.active {
-    color: var(--primary-color);
+    color: var(--accent-text);
     border-bottom-color: var(--primary-color);
 }
 
@@ -525,7 +621,7 @@ body {
     font-size: 0.875rem;
     border: 1px solid var(--border-color);
     border-radius: 0.375rem;
-    background-color: #0a0a0a;
+    background-color: var(--input-bg);
     color: var(--text-color);
 }
 
@@ -550,7 +646,7 @@ body {
     gap: 0.75rem;
     padding: 1rem;
     cursor: pointer;
-    background-color: #1f1f1f;
+    background-color: var(--surface-alt);
     border-bottom: 1px solid var(--border-color);
     transition: background-color 0.2s;
     user-select: none;
@@ -559,7 +655,7 @@ body {
 
 .county-header:hover,
 .county-header:active {
-    background-color: #2a2a2a;
+    background-color: var(--surface-hover);
 }
 
 .county-header.collapsed {
@@ -568,7 +664,7 @@ body {
 
 .county-toggle {
     font-size: 0.75rem;
-    color: var(--primary-color);
+    color: var(--accent-text);
     width: 1rem;
     text-align: center;
 }
@@ -576,7 +672,7 @@ body {
 .county-name {
     font-weight: 600;
     font-size: 1rem;
-    color: var(--primary-color);
+    color: var(--accent-text);
     flex: 1;
 }
 
@@ -617,7 +713,7 @@ body {
     gap: 0.75rem;
     padding: 1rem;
     cursor: pointer;
-    background-color: #1f1f1f;
+    background-color: var(--surface-alt);
     border-bottom: 1px solid var(--border-color);
     transition: background-color 0.2s;
     user-select: none;
@@ -626,7 +722,7 @@ body {
 
 .date-header:hover,
 .date-header:active {
-    background-color: #2a2a2a;
+    background-color: var(--surface-hover);
 }
 
 .date-header.collapsed {
@@ -635,7 +731,7 @@ body {
 
 .date-toggle {
     font-size: 0.75rem;
-    color: var(--primary-color);
+    color: var(--accent-text);
     width: 1rem;
     text-align: center;
 }
@@ -643,7 +739,7 @@ body {
 .date-name {
     font-weight: 600;
     font-size: 1rem;
-    color: var(--primary-color);
+    color: var(--accent-text);
     flex: 1;
 }
 
@@ -675,7 +771,7 @@ body {
     gap: 0.75rem;
     padding: 1rem;
     cursor: pointer;
-    background-color: #1f1f1f;
+    background-color: var(--surface-alt);
     border-bottom: 1px solid var(--border-color);
     transition: background-color 0.2s;
     user-select: none;
@@ -684,7 +780,7 @@ body {
 
 .bill-status-header:hover,
 .bill-status-header:active {
-    background-color: #2a2a2a;
+    background-color: var(--surface-hover);
 }
 
 .bill-status-header.collapsed {
@@ -693,7 +789,7 @@ body {
 
 .status-toggle {
     font-size: 0.75rem;
-    color: var(--primary-color);
+    color: var(--accent-text);
     width: 1rem;
     text-align: center;
 }
@@ -701,7 +797,7 @@ body {
 .status-name {
     font-weight: 600;
     font-size: 1rem;
-    color: var(--primary-color);
+    color: var(--accent-text);
     flex: 1;
 }
 
@@ -730,9 +826,9 @@ body {
 
 .expense-sort-btn {
     font-size: 0.75rem;
-    color: var(--primary-color);
+    color: var(--accent-text);
     background: transparent;
-    border: 1px solid var(--primary-color);
+    border: 1px solid var(--accent-text);
     border-radius: 0.375rem;
     padding: 0.2rem 0.5rem;
     cursor: pointer;
@@ -742,6 +838,7 @@ body {
 
 .expense-sort-btn:hover {
     background-color: var(--primary-color);
+    border-color: var(--primary-color);
     color: #000;
 }
 
@@ -791,7 +888,7 @@ body {
     padding: 0.6rem 0 0.25rem;
     font-weight: 700;
     font-size: 1rem;
-    color: var(--primary-color);
+    color: var(--accent-text);
 }
 
 /* Task Items */
@@ -866,13 +963,14 @@ body {
     align-items: center;
     gap: 0.375rem;
     background-color: transparent;
-    border: 1px solid #f59e0b;
-    color: #f59e0b;
+    border: 1px solid var(--flag-color);
+    color: var(--flag-color);
 }
 
 .btn-flag:hover,
 .btn-flag:active {
     background-color: #f59e0b;
+    border-color: #f59e0b;
     color: #000;
 }
 
@@ -926,7 +1024,7 @@ body {
 .followup-category {
     font-size: 0.75rem;
     font-weight: 600;
-    color: #f59e0b;
+    color: var(--flag-color);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -1148,7 +1246,7 @@ body {
 .deposit-amount {
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--primary-color);
+    color: var(--accent-text);
     flex-shrink: 0;
 }
 
@@ -1209,7 +1307,7 @@ body {
 }
 
 .card-details a {
-    color: var(--primary-color);
+    color: var(--accent-text);
     text-decoration: none;
 }
 
@@ -1279,7 +1377,7 @@ body {
 .modal {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--overlay);
     display: flex;
     align-items: flex-end;
     justify-content: center;
@@ -1383,11 +1481,299 @@ body {
     flex: 1;
 }
 
+/* Text-style button (secondary actions in install cards) */
+.btn-text {
+    background: transparent;
+    color: var(--accent-text);
+}
+
+.btn-text:hover,
+.btn-text:active {
+    text-decoration: underline;
+}
+
+/* Install suggestion card (login, pending approval, Home tab) */
+.install-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    margin-bottom: 1rem;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--primary-color);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow);
+    text-align: left;
+}
+
+.auth-box .install-banner {
+    margin: 1.25rem 0 0;
+    background-color: var(--surface-alt);
+    box-shadow: none;
+}
+
+.install-banner-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.install-banner-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.install-banner-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.install-banner-text {
+    margin-top: 0.125rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+.install-banner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.625rem;
+}
+
+.install-banner-close {
+    margin: -0.25rem -0.25rem 0 0;
+    padding: 0.25rem;
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+/* Install guide modal */
+.install-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 1rem;
+}
+
+.install-one-tap {
+    margin-bottom: 1.25rem;
+    padding: 1rem;
+    text-align: center;
+    background-color: var(--surface-alt);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+}
+
+.install-one-tap .btn {
+    width: 100%;
+    margin-top: 0.75rem;
+}
+
+.install-status {
+    padding: 1.5rem 1rem;
+    text-align: center;
+}
+
+.install-status-title {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.install-status p:not(.install-status-title) {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.install-steps-heading {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.install-steps-heading h4 {
+    font-size: 1rem;
+}
+
+.install-steps-heading span {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.install-device-label {
+    display: block;
+    margin: 0.75rem 0 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.install-device-select {
+    width: 100%;
+    padding: 0.625rem;
+    font-size: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
+.install-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    list-style: none;
+}
+
+.install-step {
+    display: flex;
+    gap: 0.875rem;
+    padding: 0.875rem;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+}
+
+.install-step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: #000000;
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.install-step-content {
+    min-width: 0;
+}
+
+.install-step-title {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.install-step-detail {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+/* Small mock of the button to look for */
+.install-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: fit-content;
+    margin-top: 0.625rem;
+    padding: 0.375rem 0.75rem;
+    background-color: var(--surface-alt);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.install-hint svg {
+    width: 18px;
+    height: 18px;
+    color: var(--accent-text);
+}
+
+.install-hint img {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+}
+
+.install-hint-confirm {
+    font-weight: 600;
+    color: var(--accent-text);
+}
+
+.install-step-action {
+    display: flex;
+    width: fit-content;
+    margin-top: 0.625rem;
+}
+
+.install-alternatives {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.install-note {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background-color: var(--surface-alt);
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+.install-one-tap + .install-note,
+.install-body > .install-note:first-child {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.install-link-fallback {
+    margin-top: 0.625rem;
+    padding: 0.375rem 0.5rem;
+    background-color: var(--surface-alt);
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    word-break: break-all;
+    user-select: all;
+    -webkit-user-select: all;
+}
+
+/* "New version available" bar (sw-register.js) */
+.update-banner {
+    position: fixed;
+    left: 50%;
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: max-content;
+    max-width: calc(100% - 2rem);
+    padding: 0.625rem 0.75rem 0.625rem 1rem;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--primary-color);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-lg);
+    font-size: 0.875rem;
+}
+
 /* Loading Overlay */
 .loading {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.8);
+    background-color: var(--loading-overlay);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1520,7 +1906,7 @@ body {
         height: 100%;
         border-bottom: none;
         border-right: 1px solid var(--border-color);
-        background-color: #111111;
+        background-color: var(--sidebar-bg);
         padding: 0.5rem 0;
     }
 
@@ -1546,7 +1932,7 @@ body {
     .tab-btn.active {
         border-bottom-color: transparent;
         border-left-color: var(--primary-color);
-        background-color: rgba(250, 204, 21, 0.08);
+        background-color: var(--nav-active-bg);
     }
 
     .tab-btn:hover {
@@ -1583,4 +1969,3 @@ body {
     }
 }
 
-/* Dark mode is now the default theme */

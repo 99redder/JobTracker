@@ -1,3 +1,10 @@
+// Refuse to run inside a frame (clickjacking). The CSP's frame-ancestors is
+// ignored in a <meta> tag and GitHub Pages can't send it as a header.
+if (window.top !== window.self) {
+    document.documentElement.style.display = 'none';
+    throw new Error('Job Tracker cannot be shown inside a frame.');
+}
+
 // Firebase Configuration (injected from local, untracked file)
 const firebaseConfig = window.JOBTRACKER_FIREBASE_CONFIG || null;
 
@@ -31,6 +38,11 @@ function isSafeStorageUrl(url) {
     }
 }
 
+// Status values become CSS class names (e.g. "In Progress" -> "status-in-progress").
+function statusClass(status) {
+    return `status-${String(status || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+}
+
 // ============================================
 // DOM ELEMENTS
 // ============================================
@@ -51,6 +63,41 @@ const confirmModalMessage = document.getElementById('confirm-modal-message');
 const confirmModalCancelBtn = document.getElementById('cancel-delete');
 const confirmModalConfirmBtn = document.getElementById('confirm-delete');
 const loading = document.getElementById('loading');
+
+// ============================================
+// THEME
+// Light is the default. theme-init.js applies the saved choice before first
+// paint; the header toggle switches and remembers it on this device.
+// ============================================
+const THEME_STORAGE_KEY = 'jobtracker-theme';
+const THEME_COLORS = { light: '#ffffff', dark: '#000000' };
+const themeToggle = document.getElementById('theme-toggle');
+
+function currentTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (themeColor) themeColor.setAttribute('content', THEME_COLORS[theme]);
+
+    const label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+    themeToggle.setAttribute('aria-label', label);
+    themeToggle.title = label;
+}
+
+themeToggle.addEventListener('click', () => {
+    const next = currentTheme() === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    try {
+        localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch (e) {
+        // Storage unavailable (private mode); the choice lasts for this visit.
+    }
+});
+
+applyTheme(currentTheme());
 
 // ============================================
 // CONSTANTS & STATE
@@ -101,8 +148,10 @@ function sanitizeStorageFileName(fileName) {
     return baseName || 'upload';
 }
 
+const ALLOWED_UPLOAD_CONTENT_TYPES = new Set(Object.values(UPLOAD_CONTENT_TYPES_BY_EXTENSION));
+
 function inferUploadContentType(file) {
-    if (file.type && (/^image\//.test(file.type) || file.type === 'application/pdf')) {
+    if (file.type && ALLOWED_UPLOAD_CONTENT_TYPES.has(file.type)) {
         return file.type;
     }
 
@@ -125,10 +174,24 @@ function validateUpload(file) {
 
     const contentType = inferUploadContentType(file);
     if (!contentType) {
-        throw new Error('File must be an image or PDF.');
+        throw new Error('File must be a photo (JPEG, PNG, HEIC, WebP, GIF, AVIF) or a PDF.');
     }
 
     return contentType;
+}
+
+// Storage reference for a record's existing attachment, if it has one.
+function attachmentRef(record, fieldName) {
+    if (!record) return null;
+    try {
+        const path = record[`${fieldName}Path`];
+        if (path) return storage.ref(path);
+        const url = record[fieldName];
+        if (url && isSafeStorageUrl(url)) return storage.refFromURL(url);
+    } catch (error) {
+        console.warn('Could not resolve attachment:', error);
+    }
+    return null;
 }
 
 function isPdfAttachment(item) {
@@ -239,14 +302,20 @@ async function checkUserApproval(user) {
 // ============================================
 // FOLLOW-UP SYSTEM
 // ============================================
+const MAX_FOLLOWUP_TITLE_LENGTH = 500;
+
 async function flagForFollowUp(category, itemId, itemTitle) {
     if (!currentUser) return;
+
+    const title = itemTitle.length > MAX_FOLLOWUP_TITLE_LENGTH
+        ? `${itemTitle.slice(0, MAX_FOLLOWUP_TITLE_LENGTH - 1)}…`
+        : itemTitle;
 
     try {
         await db.collection('followups').add({
             category: category,
             itemId: itemId,
-            itemTitle: itemTitle,
+            itemTitle: title,
             flaggedBy: currentUser.uid,
             flaggedByEmail: currentUser.email,
             flaggedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -304,7 +373,7 @@ async function loadFollowUps() {
 
             // Only show dismiss button for admins
             const dismissButton = isAdmin() ?
-                `<button class="btn btn-small btn-dismiss" data-id="${followup.id}">Dismiss</button>` : '';
+                `<button class="btn btn-small btn-dismiss" data-id="${escapeHtml(followup.id)}">Dismiss</button>` : '';
 
             item.innerHTML = `
                 <div class="followup-content">
@@ -377,8 +446,8 @@ async function loadPendingUsers() {
                     <span class="pending-user-meta">Signed up on ${signupDate}</span>
                 </div>
                 <div class="pending-user-actions">
-                    <button class="btn btn-small btn-approve" data-uid="${user.uid}">Approve</button>
-                    <button class="btn btn-small btn-danger btn-reject" data-uid="${user.uid}">Reject</button>
+                    <button class="btn btn-small btn-approve" data-uid="${escapeHtml(user.uid)}">Approve</button>
+                    <button class="btn btn-small btn-danger btn-reject" data-uid="${escapeHtml(user.uid)}">Reject</button>
                 </div>
             `;
 
@@ -649,7 +718,7 @@ function openLegalModal(kind) {
         legalTitle.textContent = 'Privacy Policy';
         legalBody.innerHTML = `
             <p><strong>Effective date:</strong> ${effectiveDate}</p>
-            <p>JobTracker ("we," "our," or "us") respects your privacy. This Privacy Policy explains what information we collect and how we use it when you use the app.</p>
+            <p>Job Tracker ("we," "our," or "us") respects your privacy. This Privacy Policy explains what information we collect and how we use it when you use the app.</p>
 
             <h4>Information we collect</h4>
             <ul>
@@ -681,7 +750,7 @@ function openLegalModal(kind) {
         legalTitle.textContent = 'Terms of Use';
         legalBody.innerHTML = `
             <p><strong>Effective date:</strong> ${effectiveDate}</p>
-            <p>By using JobTracker, you agree to these Terms of Use.</p>
+            <p>By using Job Tracker, you agree to these Terms of Use.</p>
 
             <h4>Use of the service</h4>
             <ul>
@@ -778,7 +847,7 @@ signupForm.addEventListener('submit', async (e) => {
         // Sign out immediately so onAuthStateChanged doesn't grant access
         await auth.signOut();
 
-        showMessage('Account created successfully! Your account is pending admin approval. You will be notified once approved.');
+        showMessage('Account created! An admin needs to approve it before you can use Job Tracker. Log in any time to check.');
     } catch (error) {
         showMessage(error.message, true);
     }
@@ -819,51 +888,64 @@ document.getElementById('pending-logout-btn').addEventListener('click', async ()
     hideLoading();
 });
 
+// Pending approval: re-check without logging out once an admin approves
+document.getElementById('pending-refresh-btn').addEventListener('click', async () => {
+    if (!auth.currentUser) return;
+    showLoading();
+    await showScreenForUser(auth.currentUser);
+    hideLoading();
+});
+
 // ============================================
 // AUTH STATE OBSERVER
 // Three containers: auth-container, app-container, pending-approval-container
 // ============================================
+// Sends a signed-in user to the pending-approval screen or into the app.
+async function showScreenForUser(user) {
+    currentUser = user;
+    await refreshCurrentUserClaims(true);
+
+    // Check approval status
+    const approvalStatus = await checkUserApproval(user);
+
+    if (!approvalStatus.approved) {
+        // User is pending or not approved
+        authContainer.classList.add('hidden');
+        appContainer.classList.add('hidden');
+
+        // Show pending approval container
+        pendingApprovalContainer.classList.remove('hidden');
+
+        // Update pending message
+        const pendingMessage = document.getElementById('pending-message');
+        if (approvalStatus.pending) {
+            pendingMessage.textContent = 'Your account is awaiting admin approval. Once you are approved, tap Check Again or log in again.';
+        } else if (approvalStatus.orphaned) {
+            pendingMessage.textContent = 'Your account needs approval. Please sign up with email/password or contact an administrator.';
+        } else if (approvalStatus.error) {
+            pendingMessage.textContent = 'Error checking approval status. Please try again later.';
+        }
+
+        return; // Don't proceed to app
+    }
+
+    // User is approved - proceed normally
+    authContainer.classList.add('hidden');
+    appContainer.classList.remove('hidden');
+    pendingApprovalContainer.classList.add('hidden');
+    updateAdminUI();
+    if (isAdmin()) {
+        Promise.all([autoFlagVehicleRenewals(), autoFlagLicenseExpirations()]).then(() => {
+            loadFollowUps();
+            loadPendingUsers();
+        });
+    }
+    loadAllData();
+}
+
 auth.onAuthStateChanged(async (user) => {
     if (user) {
-        currentUser = user;
-        await refreshCurrentUserClaims(true);
-
-        // Check approval status
-        const approvalStatus = await checkUserApproval(user);
-
-        if (!approvalStatus.approved) {
-            // User is pending or not approved
-            authContainer.classList.add('hidden');
-            appContainer.classList.add('hidden');
-
-            // Show pending approval container
-            pendingApprovalContainer.classList.remove('hidden');
-
-            // Update pending message
-            const pendingMessage = document.getElementById('pending-message');
-            if (approvalStatus.pending) {
-                pendingMessage.textContent = 'Your account is awaiting admin approval. You will be notified once approved.';
-            } else if (approvalStatus.orphaned) {
-                pendingMessage.textContent = 'Your account needs approval. Please sign up with email/password or contact an administrator.';
-            } else if (approvalStatus.error) {
-                pendingMessage.textContent = 'Error checking approval status. Please try again later.';
-            }
-
-            return; // Don't proceed to app
-        }
-
-        // User is approved - proceed normally
-        authContainer.classList.add('hidden');
-        appContainer.classList.remove('hidden');
-        pendingApprovalContainer.classList.add('hidden');
-        updateAdminUI();
-        if (isAdmin()) {
-            Promise.all([autoFlagVehicleRenewals(), autoFlagLicenseExpirations()]).then(() => {
-                loadFollowUps();
-                loadPendingUsers();
-            });
-        }
-        loadAllData();
+        await showScreenForUser(user);
     } else {
         currentUser = null;
         currentUserClaims = {};
@@ -877,7 +959,10 @@ auth.onAuthStateChanged(async (user) => {
 function updateAdminUI() {
     const adminElements = document.querySelectorAll('.admin-only');
     if (isAdmin()) {
-        adminElements.forEach(el => el.classList.remove('hidden'));
+        // Admin-only tab panels (Activity) stay under tab switching's control
+        adminElements.forEach(el => {
+            if (!el.classList.contains('tab-panel')) el.classList.remove('hidden');
+        });
         document.body.classList.add('is-admin');
     } else {
         adminElements.forEach(el => el.classList.add('hidden'));
@@ -1302,6 +1387,19 @@ document.getElementById('modal-form').addEventListener('submit', async (e) => {
     showLoading();
 
     try {
+        // When a new file replaces an old one, the old file is deleted after the
+        // record is saved so stale customer documents don't linger in Storage.
+        let replacedFileRef = null;
+        if (editId && fileToUpload && fileFieldName) {
+            try {
+                const existing = await withTimeout(db.collection(category).doc(editId).get(), 10000);
+                replacedFileRef = attachmentRef(existing.data(), fileFieldName);
+            } catch (error) {
+                // Not worth failing the save over; the old file just stays in Storage.
+                console.warn('Could not look up the file being replaced:', error);
+            }
+        }
+
         // Upload file if present
         if (fileToUpload && fileFieldName) {
             const contentType = validateUpload(fileToUpload);
@@ -1320,6 +1418,9 @@ document.getElementById('modal-form').addEventListener('submit', async (e) => {
             await withTimeout(db.collection(category).doc(editId).update(data), 15000);
         } else {
             await withTimeout(db.collection(category).add(data), 15000);
+        }
+        if (replacedFileRef) {
+            replacedFileRef.delete().catch(error => console.warn('Could not delete replaced file:', error));
         }
         await withTimeout(loadData(category), 10000);
     } catch (error) {
@@ -1568,7 +1669,7 @@ let paidExpensesSortDesc = false;
 
 // ============================================
 // RENDERING: CARD BUILDERS & LIST RENDERER
-// renderList() at ~line 1480 dispatches to the card builders below.
+// renderList() at ~line 1820 dispatches to the card builders below.
 // ============================================
 function createTaskItem(item, category) {
     const taskItem = document.createElement('div');
@@ -1576,13 +1677,13 @@ function createTaskItem(item, category) {
 
     const adminActions = isAdmin() ? `
         <div class="task-actions">
-            <button class="btn-icon btn-edit-task" data-id="${item.id}" aria-label="Edit">
+            <button class="btn-icon btn-edit-task" data-id="${escapeHtml(item.id)}" aria-label="Edit">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                 </svg>
             </button>
-            <button class="btn-icon btn-delete-task" data-id="${item.id}" aria-label="Delete">
+            <button class="btn-icon btn-delete-task" data-id="${escapeHtml(item.id)}" aria-label="Delete">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="3 6 5 6 21 6"></polyline>
                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -1591,7 +1692,7 @@ function createTaskItem(item, category) {
         </div>
     ` : `
         <div class="task-actions">
-            <button class="btn-icon btn-flag-task" data-id="${item.id}" aria-label="Flag for Follow Up">
+            <button class="btn-icon btn-flag-task" data-id="${escapeHtml(item.id)}" aria-label="Flag for Follow Up">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
                     <line x1="4" y1="22" x2="4" y2="15"></line>
@@ -1640,12 +1741,12 @@ function createPermitCard(item, category) {
 
     const adminActions = isAdmin() ? `
         <div class="card-actions">
-            <button class="btn btn-small btn-edit" data-id="${item.id}">Edit</button>
-            <button class="btn btn-small btn-danger" data-id="${item.id}">Delete</button>
+            <button class="btn btn-small btn-edit" data-id="${escapeHtml(item.id)}">Edit</button>
+            <button class="btn btn-small btn-danger" data-id="${escapeHtml(item.id)}">Delete</button>
         </div>
     ` : `
         <div class="card-actions">
-            <button class="btn btn-small btn-flag" data-id="${item.id}">
+            <button class="btn btn-small btn-flag" data-id="${escapeHtml(item.id)}">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                     <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
                     <line x1="4" y1="22" x2="4" y2="15"></line>
@@ -1659,13 +1760,13 @@ function createPermitCard(item, category) {
         ? (isPdfAttachment(item)
             ? `
         <div class="permit-image">
-            <a href="${item.image}" target="_blank" rel="noopener" class="permit-pdf-link">View PDF</a>
+            <a href="${escapeHtml(item.image)}" target="_blank" rel="noopener" class="permit-pdf-link">View PDF</a>
         </div>
     `
             : `
         <div class="permit-image">
-            <a href="${item.image}" target="_blank" rel="noopener">
-                <img src="${item.image}" alt="Permit photo" class="permit-photo">
+            <a href="${escapeHtml(item.image)}" target="_blank" rel="noopener">
+                <img src="${escapeHtml(item.image)}" alt="Permit photo" class="permit-photo">
             </a>
         </div>
     `)
@@ -1680,7 +1781,7 @@ function createPermitCard(item, category) {
     card.innerHTML = `
         <div class="card-header">
             <span class="card-title">${escapeHtml(item.permitNumber)}</span>
-            <span class="status-badge status-${item.status?.toLowerCase().replace(' ', '-')}">${escapeHtml(item.status)}</span>
+            <span class="status-badge ${statusClass(item.status)}">${escapeHtml(item.status)}</span>
         </div>
         <div class="card-details">
             <p><strong>Customer:</strong> ${escapeHtml(item.customerName)}</p>
@@ -2115,15 +2216,15 @@ function renderList(category, items) {
         if (isAdmin()) {
             cardContent += `
                 <div class="card-actions">
-                    <button class="btn btn-small btn-edit" data-id="${item.id}">Edit</button>
-                    <button class="btn btn-small btn-danger" data-id="${item.id}">Delete</button>
+                    <button class="btn btn-small btn-edit" data-id="${escapeHtml(item.id)}">Edit</button>
+                    <button class="btn btn-small btn-danger" data-id="${escapeHtml(item.id)}">Delete</button>
                 </div>
             `;
         } else {
             // Flag button for non-admin users
             cardContent += `
                 <div class="card-actions">
-                    <button class="btn btn-small btn-flag" data-id="${item.id}">
+                    <button class="btn btn-small btn-flag" data-id="${escapeHtml(item.id)}">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                             <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
                             <line x1="4" y1="22" x2="4" y2="15"></line>
@@ -2181,7 +2282,7 @@ function createBillCard(item, category) {
     let cardContent = `
         <div class="card-header">
             <span class="card-title">${escapeHtml(item.vendor)}</span>
-            <span class="status-badge status-${item.status?.toLowerCase()}">${escapeHtml(item.status)}</span>
+            <span class="status-badge ${statusClass(item.status)}">${escapeHtml(item.status)}</span>
         </div>
         <div class="card-details">
             <p><strong>Invoice #:</strong> ${escapeHtml(item.invoiceNumber)}</p>
@@ -2197,14 +2298,14 @@ function createBillCard(item, category) {
     if (isAdmin()) {
         cardContent += `
             <div class="card-actions">
-                <button class="btn btn-small btn-edit" data-id="${item.id}">Edit</button>
-                <button class="btn btn-small btn-danger" data-id="${item.id}">Delete</button>
+                <button class="btn btn-small btn-edit" data-id="${escapeHtml(item.id)}">Edit</button>
+                <button class="btn btn-small btn-danger" data-id="${escapeHtml(item.id)}">Delete</button>
             </div>
         `;
     } else {
         cardContent += `
             <div class="card-actions">
-                <button class="btn btn-small btn-flag" data-id="${item.id}">
+                <button class="btn btn-small btn-flag" data-id="${escapeHtml(item.id)}">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                         <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
                         <line x1="4" y1="22" x2="4" y2="15"></line>
@@ -2268,14 +2369,14 @@ function createDepositCard(item, category) {
     if (isAdmin()) {
         cardContent += `
             <div class="card-actions">
-                <button class="btn btn-small btn-edit" data-id="${item.id}">Edit</button>
-                <button class="btn btn-small btn-danger" data-id="${item.id}">Delete</button>
+                <button class="btn btn-small btn-edit" data-id="${escapeHtml(item.id)}">Edit</button>
+                <button class="btn btn-small btn-danger" data-id="${escapeHtml(item.id)}">Delete</button>
             </div>
         `;
     } else {
         cardContent += `
             <div class="card-actions">
-                <button class="btn btn-small btn-flag" data-id="${item.id}">
+                <button class="btn btn-small btn-flag" data-id="${escapeHtml(item.id)}">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                         <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
                         <line x1="4" y1="22" x2="4" y2="15"></line>
@@ -2339,14 +2440,14 @@ function createInspectionCard(item, category) {
     if (isAdmin()) {
         cardContent += `
             <div class="card-actions">
-                <button class="btn btn-small btn-edit" data-id="${item.id}">Edit</button>
-                <button class="btn btn-small btn-danger" data-id="${item.id}">Delete</button>
+                <button class="btn btn-small btn-edit" data-id="${escapeHtml(item.id)}">Edit</button>
+                <button class="btn btn-small btn-danger" data-id="${escapeHtml(item.id)}">Delete</button>
             </div>
         `;
     } else {
         cardContent += `
             <div class="card-actions">
-                <button class="btn btn-small btn-flag" data-id="${item.id}">
+                <button class="btn btn-small btn-flag" data-id="${escapeHtml(item.id)}">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                         <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
                         <line x1="4" y1="22" x2="4" y2="15"></line>
@@ -2402,13 +2503,13 @@ function createLicenseCard(item, category) {
         ? (isPdfAttachment(item)
             ? `
         <div class="license-image">
-            <a href="${item.image}" target="_blank" rel="noopener" class="permit-pdf-link">View PDF</a>
+            <a href="${escapeHtml(item.image)}" target="_blank" rel="noopener" class="permit-pdf-link">View PDF</a>
         </div>
     `
             : `
         <div class="license-image">
-            <a href="${item.image}" target="_blank" rel="noopener">
-                <img src="${item.image}" alt="License photo" class="permit-photo">
+            <a href="${escapeHtml(item.image)}" target="_blank" rel="noopener">
+                <img src="${escapeHtml(item.image)}" alt="License photo" class="permit-photo">
             </a>
         </div>
     `)
@@ -2431,14 +2532,14 @@ function createLicenseCard(item, category) {
     if (isAdmin()) {
         cardContent += `
             <div class="card-actions">
-                <button class="btn btn-small btn-edit" data-id="${item.id}">Edit</button>
-                <button class="btn btn-small btn-danger" data-id="${item.id}">Delete</button>
+                <button class="btn btn-small btn-edit" data-id="${escapeHtml(item.id)}">Edit</button>
+                <button class="btn btn-small btn-danger" data-id="${escapeHtml(item.id)}">Delete</button>
             </div>
         `;
     } else {
         cardContent += `
             <div class="card-actions">
-                <button class="btn btn-small btn-flag" data-id="${item.id}">
+                <button class="btn btn-small btn-flag" data-id="${escapeHtml(item.id)}">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                         <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
                         <line x1="4" y1="22" x2="4" y2="15"></line>
@@ -2625,10 +2726,11 @@ document.addEventListener('click', (e) => {
 
 // Invite button - Share functionality
 document.getElementById('invite-btn').addEventListener('click', async () => {
+    // #install opens the install guide (install.js) when the link is opened.
     const shareData = {
         title: 'Job Tracker',
-        text: 'Check out Job Tracker - a simple app to track permits, vehicles, bills, and daily activity!',
-        url: 'https://99redder.github.io/JobTracker'
+        text: "You're invited to Job Tracker. Open the link, create an account, and follow the steps to install the app on your phone.",
+        url: 'https://99redder.github.io/JobTracker/#install'
     };
 
     try {

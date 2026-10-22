@@ -1,4 +1,4 @@
-name: Deploy JobTracker to GitHub Pages
+name: Deploy Job Tracker to GitHub Pages
 
 on:
   push:
@@ -54,17 +54,22 @@ jobs:
           cp \
             index.html \
             styles.css \
+            theme-init.js \
+            install.js \
             app.js \
             sw.js \
             sw-register.js \
             manifest.json \
             firebase-config.local.js \
+            icon.svg \
             favicon-16x16.png \
             favicon-32x32.png \
             favicon-48x48.png \
             apple-touch-icon.png \
             icon-192x192.png \
             icon-512x512.png \
+            icon-maskable-192x192.png \
+            icon-maskable-512x512.png \
             .pages/
 
       - name: Setup Pages

@@ -1,24 +1,38 @@
 {
-  "name": "JobTracker",
-  "short_name": "JobTracker",
+  "id": "/JobTracker/",
+  "name": "Job Tracker",
+  "short_name": "Job Tracker",
   "description": "Track permits, vehicles, bills, deposits, inspections, and business licenses",
   "start_url": "/JobTracker/",
+  "scope": "/JobTracker/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#FCD34D",
+  "background_color": "#f5f5f4",
+  "theme_color": "#ffffff",
   "orientation": "portrait-primary",
   "icons": [
     {
       "src": "icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

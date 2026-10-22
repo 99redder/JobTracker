@@ -1,17 +1,23 @@
-const CACHE_NAME = 'jobtracker-v6';
+const CACHE_NAME = 'jobtracker-v7';
 const STATIC_ASSETS = new Set([
   './',
   './index.html',
   './styles.css',
+  './theme-init.js',
+  './install.js',
   './app.js',
+  './sw-register.js',
   './manifest.json',
   './firebase-config.local.js',
+  './icon.svg',
   './favicon-16x16.png',
   './favicon-32x32.png',
   './favicon-48x48.png',
   './apple-touch-icon.png',
   './icon-192x192.png',
-  './icon-512x512.png'
+  './icon-512x512.png',
+  './icon-maskable-192x192.png',
+  './icon-maskable-512x512.png'
 ]);
 
 function isCacheableStaticRequest(request) {
@@ -26,11 +32,12 @@ function isCacheableStaticRequest(request) {
 
 // Install event - cache essential app shell files only. Never cache Firestore,
 // Firebase Storage, auth, or other API responses that may contain PII.
+// A new version waits until the user taps "Update" (sw-register.js sends
+// 'skipWaiting'), so the page never reloads in the middle of an edit.
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll([...STATIC_ASSETS]))
-      .then(() => self.skipWaiting())
   );
 });
 
